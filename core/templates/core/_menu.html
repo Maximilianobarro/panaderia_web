@@ -1,0 +1,22 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/base.css' %}">
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+
+<nav class="navbar-main">
+    <a href="{% url 'dashboard' %}" class="nav-logo">🏠 Inicio</a>
+
+    {% if request.session.nombre_usuario %}
+        <span class="nav-user">👤 {{ request.session.nombre_usuario }}</span>
+        <a href="{% url 'logout_usuario' %}" class="nav-highlight">Cerrar sesión</a>
+    {% else %}
+        <a href="{% url 'login_usuario' %}" class="nav-highlight">Login</a>
+    {% endif %}
+</nav>
+
+{% if messages %}
+<section class="mensajes">
+    {% for message in messages %}
+        <p class="mensaje mensaje-{{ message.tags }}">{{ message }}</p>
+    {% endfor %}
+</section>
+{% endif %}

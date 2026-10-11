@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Clientes - Panadería Zulca</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    {% include 'core/_menu.html' %}
+    <div class="container mt-5">
+        <h1 class="mb-4">Clientes</h1>
+
+        <a href="{% url 'crear_cliente' %}" class="btn btn-success mb-3">+ Nuevo Cliente</a>
+
+        <table class="table table-bordered table-striped bg-white">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Apellido</th>
+                    <th>Email</th>
+                    <th>Dirección</th>
+                    <th>Ciudad</th>
+                    <th>Fecha alta</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cliente in clientes %}
+                <tr>
+                    <td>{{ cliente.id_cliente }}</td>
+                    <td>{{ cliente.nombre }}</td>
+                    <td>{{ cliente.apellido }}</td>
+                    <td>{{ cliente.email }}</td>
+                    <td>{{ cliente.calle }} {{ cliente.numero }}</td>
+                    <td>{{ cliente.ciudad }}</td>
+                    <td>{{ cliente.fecha_alta }}</td>
+                    <td>
+                        <a href="{% url 'editar_cliente' cliente.pk %}" class="btn btn-sm btn-primary">Editar</a>
+                        <a href="{% url 'borrar_cliente' cliente.pk %}" class="btn btn-sm btn-danger"
+                           onclick="return confirm('¿Seguro que querés borrar este cliente?');">Borrar</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center">No hay clientes cargados todavía.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

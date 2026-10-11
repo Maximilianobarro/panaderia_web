@@ -1,0 +1,74 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inicio - Panadería Zulca</title>
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+</head>
+<body>
+    {% include 'core/_menu.html' %}
+
+    <header class="dashboard-header">
+        <h1>Panadería Zulca</h1>
+    </header>
+
+    <main class="dashboard-grid">
+        {% if es_admin or 'ver_productos' in permisos_usuario %}
+        <a class="dash-card" href="{% url 'producto_lista' %}">
+            <span class="icon">🥖</span><h3>Productos</h3><p>Stock y precios</p>
+        </a>
+        {% endif %}
+
+        {% if es_admin or 'ver_clientes' in permisos_usuario %}
+        <a class="dash-card" href="{% url 'lista_clientes' %}">
+            <span class="icon">👤</span><h3>Clientes</h3><p>Gestionar clientes</p>
+        </a>
+        {% endif %}
+
+        {% if es_admin or 'ver_ventas' in permisos_usuario %}
+        <a class="dash-card" href="{% url 'venta_lista' %}">
+            <span class="icon">💰</span><h3>Ventas</h3><p>Registro de ventas</p>
+        </a>
+        <a class="dash-card" href="{% url 'detalle_venta_lista' %}">
+            <span class="icon">🧾</span><h3>Detalle ventas</h3><p>Ítems por venta</p>
+        </a>
+        <a class="dash-card" href="{% url 'encargo_lista' %}">
+            <span class="icon">📦</span><h3>Encargos</h3><p>Pedidos especiales</p>
+        </a>
+        <a class="dash-card" href="{% url 'detalle_encargo_lista' %}">
+            <span class="icon">📋</span><h3>Detalle encargos</h3><p>Ítems por encargo</p>
+        </a>
+        {% endif %}
+
+        {% if es_admin or 'ver_categorias' in permisos_usuario %}
+        <a class="dash-card" href="{% url 'categoria_lista' %}">
+            <span class="icon">🏷️</span><h3>Categorías</h3><p>Categorías de productos</p>
+        </a>
+        {% endif %}
+
+        {% if es_admin or 'gestionar_usuarios' in permisos_usuario %}
+        <a class="dash-card" href="{% url 'usuario_lista' %}">
+            <span class="icon">🔑</span><h3>Usuarios</h3><p>Accesos del personal</p>
+        </a>
+        {% endif %}
+
+        {% if es_admin or 'gestionar_roles' in permisos_usuario %}
+        <a class="dash-card" href="{% url 'rol_lista' %}">
+            <span class="icon">🛡️</span><h3>Roles</h3><p>Administrar roles</p>
+        </a>
+        <a class="dash-card" href="{% url 'permiso_lista' %}">
+            <span class="icon">🔐</span><h3>Permisos</h3><p>Control de accesos</p>
+        </a>
+        {% endif %}
+    </main>
+
+    {% if not es_admin and not permisos_usuario %}
+    <section class="mensajes">
+        <p class="mensaje">Tu rol todavía no tiene accesos asignados. Consultá con el Administrador.</p>
+    </section>
+    {% endif %}
+</body>
+</html>

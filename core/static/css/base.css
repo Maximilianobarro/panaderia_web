@@ -1,0 +1,21 @@
+:root {
+  --bg-dark: #3e2a1e;       
+  --bg-panel: #F5DEB3;      
+  --wheat: #F5DEB3;
+  --wheat-strong: #8b5e34;  
+  --white: #ffffff;
+  --text-dark: #3e2a1e;     
+  --text-muted: #6b4f3a;
+  --border: #6b4f3a;
+}
+
+h1, h2, h3, h4, h5, label {
+  color: var(--wheat-strong);
+}
+
+body {
+  background: var(--bg-dark);
+  color: var(--white);
+  font-family: 'Segoe UI', sans-serif;
+  margin: 0;
+}

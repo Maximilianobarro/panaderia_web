@@ -1,0 +1,48 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inicio - Panadería Zulca</title>
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+</head>
+<body>
+    {% include 'core/_menu.html' %}
+
+    <header class="dashboard-header">
+        <h1>Panadería Zulca</h1>
+    </header>
+
+    <main class="dashboard-grid">
+        <a class="dash-card" href="{% url 'lista_clientes' %}">
+            <span class="icon">👤</span><h3>Clientes</h3><p>Gestionar clientes</p>
+        </a>
+        <a class="dash-card" href="{% url 'rol_lista' %}">
+            <span class="icon">🛡️</span><h3>Roles</h3><p>Administrar roles</p>
+        </a>
+        <a class="dash-card" href="{% url 'categoria_lista' %}">
+            <span class="icon">🏷️</span><h3>Categorías</h3><p>Categorías de productos</p>
+        </a>
+        <a class="dash-card" href="{% url 'usuario_lista' %}">
+            <span class="icon">🔑</span><h3>Usuarios</h3><p>Accesos del personal</p>
+        </a>
+        <a class="dash-card" href="{% url 'venta_lista' %}">
+            <span class="icon">💰</span><h3>Ventas</h3><p>Registro de ventas</p>
+        </a>
+        <a class="dash-card" href="{% url 'encargo_lista' %}">
+            <span class="icon">📦</span><h3>Encargos</h3><p>Pedidos especiales</p>
+        </a>
+        <a class="dash-card" href="{% url 'detalle_venta_lista' %}">
+            <span class="icon">🧾</span><h3>Detalle ventas</h3><p>Ítems por venta</p>
+        </a>
+        <a class="dash-card" href="{% url 'detalle_encargo_lista' %}">
+            <span class="icon">📋</span><h3>Detalle encargos</h3><p>Ítems por encargo</p>
+        </a>
+        <a class="dash-card" href="{% url 'permiso_lista' %}">
+            <span class="icon">🔐</span><h3>Permisos</h3><p>Control de accesos</p>
+        </a>
+    </main>
+</body>
+</html>

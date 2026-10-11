@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Modificar Usuario - Panadería Zulca</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    {% include 'core/_menu.html' %}
+    <div class="container mb-5">
+        <h1 class="mb-4">Modificar Usuario: {{ usuario.nombre_usuario }}</h1>
+        <p class="text-muted">Por política del sistema, solo se puede editar el correo electrónico.</p>
+
+        <form method="POST" class="bg-white p-4 rounded shadow-sm">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label">DNI</label>
+                <input type="text" class="form-control" value="{{ usuario.dni }}" disabled>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Apellido y Nombre</label>
+                <input type="text" class="form-control" value="{{ usuario.apellido }} {{ usuario.nombre }}" disabled>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Correo</label>
+                <input type="email" name="email" class="form-control" value="{{ usuario.email }}" required>
+            </div>
+            <div class="mb-3 text-muted small">
+                Última modificación: {{ usuario.fecha_ultima_modificacion }} (se actualiza sola al guardar)
+            </div>
+            <button type="submit" class="btn btn-success">Guardar</button>
+            <a href="{% url 'usuario_lista' %}" class="btn btn-secondary">Cancelar</a>
+        </form>
+    </div>
+</body>
+</html>
