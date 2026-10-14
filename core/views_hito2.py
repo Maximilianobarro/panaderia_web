@@ -1,6 +1,4 @@
 import re
-import secrets
-import string
 import time
 import unicodedata
 
@@ -13,7 +11,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from .auth_utils import permiso_requerido
+from .auth_utils import permiso_requerido, ROL_ADMIN
 from .models import Usuario, Rol
 
 PERMISO_USUARIOS = 'gestionar_usuarios'
@@ -22,7 +20,6 @@ MAX_INTENTOS_RECUPERO = 5
 MINUTOS_RECUPERO = 10
 
 
-# ---------- Utilidades ----------
 def _limpiar(texto):
     """Minúsculas, sin tildes y solo letras/números."""
     nfkd = unicodedata.normalize('NFKD', texto)
@@ -38,6 +35,19 @@ def _email_valido(email):
         return False
 
 
+def _roles_asignables():
+    """El Administrador es único: no se puede asignar a otras personas."""
+    return Rol.objects.exclude(nombre_rol__iexact=ROL_ADMIN)
+
+
+def _es_administrador(usuario):
+    return usuario.rol.nombre_rol.strip().lower() == ROL_ADMIN.lower()
+
+
+def _clave_valida(clave):
+    return len(clave) >= LARGO_MIN_CLAVE and bool(clave.strip())
+
+
 def generar_nombre_usuario(apellido, nombre):
     base = _limpiar(apellido) + _limpiar(nombre)[:1] or 'usuario'
     candidato = base
@@ -48,16 +58,10 @@ def generar_nombre_usuario(apellido, nombre):
     return candidato
 
 
-def generar_clave_temporal(longitud=10):
-    alfabeto = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(alfabeto) for _ in range(longitud))
-
-
-# ---------- ABM de usuarios (solo con permiso gestionar_usuarios) ----------
 @permiso_requerido(PERMISO_USUARIOS)
 @require_http_methods(["GET", "POST"])
 def usuario_alta(request):
-    roles = Rol.objects.all()
+    roles = _roles_asignables()
 
     if request.method == 'POST':
         dni = request.POST.get('dni', '').strip()
@@ -66,7 +70,7 @@ def usuario_alta(request):
         email = request.POST.get('email', '').strip()
         rol_id = request.POST.get('rol', '')
         activo = request.POST.get('activo') == 'on'
-        clave_inicial = request.POST.get('clave_inicial', '')
+        clave = request.POST.get('clave_inicial', '')
 
         errores = []
         if not dni.isdecimal():
@@ -81,7 +85,7 @@ def usuario_alta(request):
             errores.append('El correo es obligatorio.')
         elif not _email_valido(email):
             errores.append('El correo no es válido.')
-        if clave_inicial and len(clave_inicial) < LARGO_MIN_CLAVE:
+        if not _clave_valida(clave):
             errores.append(f'La contraseña debe tener al menos {LARGO_MIN_CLAVE} caracteres.')
 
         rol = roles.filter(pk=rol_id).first() if rol_id.isdecimal() else None
@@ -95,7 +99,6 @@ def usuario_alta(request):
                 'datos': request.POST,
             })
 
-        clave = clave_inicial or generar_clave_temporal()
         usuario = Usuario.objects.create(
             dni=dni,
             apellido=apellido,
@@ -104,14 +107,13 @@ def usuario_alta(request):
             nombre_usuario=generar_nombre_usuario(apellido, nombre),
             contrasena_hash=make_password(clave),
             activo=activo,
-            # Una clave escrita por el administrador se usa tal cual; una generada se cambia
-            debe_cambiar_clave=not clave_inicial,
+            debe_cambiar_clave=False,
             rol=rol,
         )
 
         return render(request, 'core/usuario_alta_exito.html', {
             'usuario': usuario,
-            'clave_temporal': clave,
+            'clave': clave,
         })
 
     return render(request, 'core/usuario_alta.html', {'roles': roles})
@@ -120,8 +122,9 @@ def usuario_alta(request):
 @permiso_requerido(PERMISO_USUARIOS)
 @require_http_methods(["GET", "POST"])
 def usuario_modificar(request, pk):
-    usuario = get_object_or_404(Usuario, pk=pk)
-    roles = Rol.objects.all()
+    usuario = get_object_or_404(Usuario.objects.select_related('rol'), pk=pk)
+    roles = _roles_asignables()
+    es_administrador = _es_administrador(usuario)
     error = None
 
     if request.method == 'POST':
@@ -132,7 +135,7 @@ def usuario_modificar(request, pk):
             error = 'El correo no es válido.'
         else:
             usuario.email = nuevo_email
-            if rol_id.isdecimal():
+            if rol_id.isdecimal() and not es_administrador:
                 nuevo_rol = roles.filter(pk=rol_id).first()
                 if nuevo_rol:
                     usuario.rol = nuevo_rol
@@ -142,6 +145,7 @@ def usuario_modificar(request, pk):
     return render(request, 'core/usuario_modificar.html', {
         'usuario': usuario,
         'roles': roles,
+        'es_administrador': es_administrador,
         'error': error,
     })
 
@@ -167,20 +171,27 @@ def usuario_baja(request, pk):
 @permiso_requerido(PERMISO_USUARIOS)
 @require_http_methods(["GET", "POST"])
 def usuario_restablecer_clave(request, pk):
-    usuario = get_object_or_404(Usuario, pk=pk)
+    usuario = get_object_or_404(Usuario.objects.select_related('rol'), pk=pk)
+    error = None
 
     if request.method == 'POST':
-        clave_temporal = generar_clave_temporal()
-        usuario.contrasena_hash = make_password(clave_temporal)
-        usuario.debe_cambiar_clave = True
-        usuario.save()
-        return render(request, 'core/usuario_alta_exito.html', {
-            'usuario': usuario,
-            'clave_temporal': clave_temporal,
-            'es_restablecimiento': True,
-        })
+        clave = request.POST.get('clave', '')
+        if not _clave_valida(clave):
+            error = f'La contraseña debe tener al menos {LARGO_MIN_CLAVE} caracteres.'
+        else:
+            usuario.contrasena_hash = make_password(clave)
+            usuario.debe_cambiar_clave = False
+            usuario.save()
+            return render(request, 'core/usuario_alta_exito.html', {
+                'usuario': usuario,
+                'clave': clave,
+                'es_restablecimiento': True,
+            })
 
-    return render(request, 'core/usuario_restablecer_clave.html', {'usuario': usuario})
+    return render(request, 'core/usuario_restablecer_clave.html', {
+        'usuario': usuario,
+        'error': error,
+    })
 
 
 @permiso_requerido(PERMISO_USUARIOS)
@@ -189,7 +200,6 @@ def usuario_lista(request):
     return render(request, 'core/usuario_list.html', {'usuarios': usuarios})
 
 
-# ---------- Login / logout ----------
 @require_http_methods(["GET", "POST"])
 def login_usuario(request):
     error = None
@@ -236,7 +246,7 @@ def usuario_cambiar_clave_obligatorio(request):
         elif len(clave_nueva) < LARGO_MIN_CLAVE:
             error = f'La clave debe tener al menos {LARGO_MIN_CLAVE} caracteres.'
         elif check_password(clave_nueva, usuario.contrasena_hash):
-            error = 'La nueva clave debe ser distinta de la temporal.'
+            error = 'La nueva clave debe ser distinta de la anterior.'
         else:
             usuario.contrasena_hash = make_password(clave_nueva)
             usuario.debe_cambiar_clave = False
@@ -251,7 +261,6 @@ def logout_usuario(request):
     return redirect('login_usuario')
 
 
-# ---------- Recuperar contraseña ----------
 @require_http_methods(["GET", "POST"])
 def recuperar_clave(request):
     """Paso 1: el usuario se identifica con usuario + DNI + correo."""

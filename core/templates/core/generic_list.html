@@ -17,6 +17,10 @@
                 <tr>
                     <th>#</th>
                     <th>Datos</th>
+                    {% if titulo == 'Producto' %}
+                    <th>Precio c/u</th>
+                    <th>Stock</th>
+                    {% endif %}
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -25,6 +29,18 @@
                 <tr>
                     <td>{{ objeto.pk }}</td>
                     <td>{{ objeto }}</td>
+                    {% if titulo == 'Producto' %}
+                    <td>${{ objeto.precio_unitario|floatformat:2 }}</td>
+                    <td>
+                        {% if objeto.stock_actual is None %}
+                            <span class="text-muted">-</span>
+                        {% elif objeto.stock_actual <= 0 %}
+                            <span class="badge text-bg-danger">{{ objeto.stock_actual }}</span>
+                        {% else %}
+                            <span class="badge text-bg-success">{{ objeto.stock_actual }}</span>
+                        {% endif %}
+                    </td>
+                    {% endif %}
                     <td>
                         <a href="{% url editar_url objeto.pk %}" class="btn btn-sm btn-primary">Editar</a>
                         <a href="{% url borrar_url objeto.pk %}" class="btn btn-sm btn-danger">Borrar</a>
@@ -32,7 +48,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="3" class="text-center">No hay registros todavía.</td>
+                    <td colspan="{% if titulo == 'Producto' %}5{% else %}3{% endif %}" class="text-center">No hay registros todavía.</td>
                 </tr>
                 {% endfor %}
             </tbody>

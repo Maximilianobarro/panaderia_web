@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 
 <nav class="navbar-main">
-    <a href="{% url 'dashboard' %}" class="nav-logo">🏠 Inicio</a>
+    <a href="{% url 'dashboard' %}" class="nav-logo">🥐 Inicio</a>
 
     {% if request.session.nombre_usuario %}
         <span class="nav-user">👤 {{ request.session.nombre_usuario }}</span>

@@ -1,16 +1,16 @@
 :root {
-  --bg-dark: #3e2a1e;       
-  --bg-panel: #F5DEB3;      
+  --bg-dark: #3e2a1e;
+  --bg-panel: #F5DEB3;
   --wheat: #F5DEB3;
-  --wheat-strong: #8b5e34;  
+  --wheat-strong: #8b5e34;
   --white: #ffffff;
-  --text-dark: #3e2a1e;     
+  --text-dark: #3e2a1e;
   --text-muted: #6b4f3a;
   --border: #6b4f3a;
 }
 
-h1, h2, h3, h4, h5, label {
-  color: var(--wheat-strong);
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
 body {
@@ -18,4 +18,29 @@ body {
   color: var(--white);
   font-family: 'Segoe UI', sans-serif;
   margin: 0;
+  color-scheme: dark;
+}
+
+h1, h2, h3, h4, h5 {
+  color: var(--wheat);
+}
+
+a {
+  text-decoration: none;
+}
+
+/* Páginas que todavía usan Bootstrap: mismo fondo y paneles legibles */
+body.bg-light {
+  background: var(--bg-dark) !important;
+  color: var(--white);
+}
+
+.bg-white {
+  color: var(--text-dark);
+}
+
+.bg-white h1,
+.bg-white h2,
+.bg-white h3 {
+  color: var(--text-dark);
 }

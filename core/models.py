@@ -92,7 +92,6 @@ class Producto(models.Model):
     nombre = models.CharField(max_length=80)
     descripcion = models.CharField(max_length=200, blank=True, null=True)
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
-    unidad_medida = models.CharField(max_length=20, blank=True, null=True)
     stock_actual = models.IntegerField(blank=True, null=True)
     estado = models.CharField(max_length=20, blank=True, null=True)
     categoria = models.ForeignKey(Categoria, on_delete=models.DO_NOTHING, db_column='categoria_idcategoria')

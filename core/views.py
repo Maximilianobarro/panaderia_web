@@ -56,7 +56,6 @@ def borrar_cliente(request, pk):
     return redirect('lista_clientes')
 
 
-# ---------- Paginas ----------
 @permiso_requerido('ver_productos')
 def index_view(request):
     return render(request, 'core/index.html')
@@ -67,14 +66,12 @@ def dashboard(request):
     return render(request, 'core/dashboard.html')
 
 
-# ---------- Productos ----------
 def producto_a_dict(producto):
     return {
         'id_producto': producto.id_producto,
         'nombre': producto.nombre,
         'descripcion': producto.descripcion,
         'precio_unitario': str(producto.precio_unitario),
-        'unidad_medida': producto.unidad_medida,
         'stock_actual': producto.stock_actual,
         'estado': producto.estado,
         'id_categoria': producto.categoria_id,
@@ -119,7 +116,6 @@ def api_crear_producto(request):
         nombre=body.get('nombre'),
         descripcion=body.get('descripcion', ''),
         precio_unitario=body.get('precio_unitario'),
-        unidad_medida=body.get('unidad_medida', ''),
         stock_actual=body.get('stock_actual', 0),
         estado=body.get('estado', 'activo'),
         categoria=categoria,
@@ -144,7 +140,6 @@ def api_editar_producto(request, pk):
     producto.nombre = body.get('nombre', producto.nombre)
     producto.descripcion = body.get('descripcion', producto.descripcion)
     producto.precio_unitario = body.get('precio_unitario', producto.precio_unitario)
-    producto.unidad_medida = body.get('unidad_medida', producto.unidad_medida)
     producto.stock_actual = body.get('stock_actual', producto.stock_actual)
     producto.estado = body.get('estado', producto.estado)
     if body.get('id_categoria'):

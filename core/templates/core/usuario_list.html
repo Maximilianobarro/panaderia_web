@@ -1,55 +1,71 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Usuarios - Panadería Zulca</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 </head>
-<body class="bg-light">
+<body>
     {% include 'core/_menu.html' %}
-    <div class="container mb-5">
-        <h1 class="mb-4">Usuarios</h1>
 
-        <a href="{% url 'usuario_alta' %}" class="btn btn-success mb-3">+ Alta de Usuario</a>
+    <main class="form-card form-card-extensa">
+        <h1>Usuarios</h1>
 
-        <table class="table table-bordered table-striped bg-white">
-            <thead class="table-dark">
-                <tr>
-                    <th>DNI</th>
-                    <th>Usuario</th>
-                    <th>Nombre completo</th>
-                    <th>Correo</th>
-                    <th>Rol</th>
-                    <th>Activo</th>
-                    <th>Debe cambiar clave</th>
-                    <th>Últ. modificación</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for u in usuarios %}
-                <tr>
-                    <td>{{ u.dni }}</td>
-                    <td>{{ u.nombre_usuario }}</td>
-                    <td>{{ u.apellido }}, {{ u.nombre }}</td>
-                    <td>{{ u.email }}</td>
-                    <td>{{ u.rol }}</td>
-                    <td>{% if u.activo %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
-                    <td>{% if u.debe_cambiar_clave %}<span class="badge bg-warning text-dark">Sí</span>{% else %}—{% endif %}</td>
-                    <td>{{ u.fecha_ultima_modificacion }}</td>
-                    <td>
-                        <a href="{% url 'usuario_modificar' u.pk %}" class="btn btn-sm btn-primary">Modificar</a>
-                        <a href="{% url 'usuario_restablecer_clave' u.pk %}" class="btn btn-sm btn-warning">Restablecer clave</a>
-                        {% if u.activo %}
-                        <a href="{% url 'usuario_baja' u.pk %}" class="btn btn-sm btn-danger">Dar de baja</a>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="9" class="text-center">No hay usuarios todavía.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+        <p class="acciones">
+            <a href="{% url 'usuario_alta' %}" class="boton">+ Alta de Usuario</a>
+        </p>
+
+        <section class="tabla-contenedor">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>DNI</th>
+                        <th>Usuario</th>
+                        <th>Nombre completo</th>
+                        <th>Correo</th>
+                        <th>Rol</th>
+                        <th>Activo</th>
+                        <th>Últ. modificación</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in usuarios %}
+                    <tr>
+                        <td>{{ u.dni }}</td>
+                        <td>{{ u.nombre_usuario }}</td>
+                        <td>{{ u.apellido }}, {{ u.nombre }}</td>
+                        <td>{{ u.email }}</td>
+                        <td>{{ u.rol }}</td>
+                        <td>
+                            {% if u.activo %}
+                            <span class="etiqueta etiqueta-si">Sí</span>
+                            {% else %}
+                            <span class="etiqueta etiqueta-no">No</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ u.fecha_ultima_modificacion|date:"d/m/Y" }}</td>
+                        <td>
+                            <p class="acciones-fila">
+                                <a href="{% url 'usuario_modificar' u.pk %}" class="boton boton-chico">Modificar</a>
+                                <a href="{% url 'usuario_restablecer_clave' u.pk %}" class="boton boton-chico boton-secundario">Restablecer clave</a>
+                                {% if u.activo and u.id_usuario != request.session.usuario_id %}
+                                <a href="{% url 'usuario_baja' u.pk %}" class="boton boton-chico boton-peligro">Dar de baja</a>
+                                {% endif %}
+                            </p>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8">No hay usuarios cargados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
 </body>
 </html>
