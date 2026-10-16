@@ -25,10 +25,7 @@
 
         <form method="post">
             {% csrf_token %}
-            <label>Nueva contraseña
-                <input type="password" name="clave" minlength="8" required autocomplete="new-password">
-            </label>
-
+            <p>Se generará una contraseña temporal. El usuario deberá cambiarla en su próximo ingreso.</p>
             <p class="acciones">
                 <button type="submit" class="boton">Restablecer clave</button>
                 <a href="{% url 'usuario_lista' %}" class="boton boton-secundario">Cancelar</a>

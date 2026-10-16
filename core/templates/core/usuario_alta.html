@@ -51,9 +51,7 @@
                         {% endfor %}
                     </select>
                 </label>
-                <label>Contraseña
-                    <input type="password" name="clave_inicial" minlength="8" required autocomplete="new-password">
-                </label>
+                <p><small>El nombre de usuario y una contraseña temporal se generan automáticamente al guardar.</small></p>
                 <label class="check">
                     <input type="checkbox" name="activo"{% if not datos or datos.activo %} checked{% endif %}>
                     Activo
