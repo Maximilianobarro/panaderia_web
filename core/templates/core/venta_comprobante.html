@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Comprobante {{ venta.numero_comprobante }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #eee; color: #222; margin: 0; padding: 24px; }
+        .barra { max-width: 720px; margin: 0 auto 16px; display: flex; gap: 8px; }
+        .barra button, .barra a { padding: 8px 16px; border: 1px solid #555; background: #fff; color: #222; text-decoration: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
+        .hoja { max-width: 720px; margin: 0 auto; background: #fff; border: 1px solid #999; padding: 32px; position: relative; }
+        h1 { margin: 0; font-size: 24px; }
+        .sub { color: #555; margin: 4px 0 20px; }
+        .datos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+        th, td { border-bottom: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background: #f2f2f2; }
+        td.num, th.num { text-align: right; }
+        .total { text-align: right; font-size: 20px; font-weight: bold; }
+        .anulada { border: 2px solid #b00020; color: #b00020; padding: 12px; margin-bottom: 20px; }
+        .pie { text-align: center; color: #555; margin-top: 24px; font-size: 13px; }
+        @media print {
+            body { background: #fff; padding: 0; }
+            .barra { display: none; }
+            .hoja { border: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="barra">
+        <button type="button" onclick="window.print()">Imprimir / Guardar como PDF</button>
+        <a href="{% url 'venta_detalle' venta.pk %}">Volver</a>
+    </div>
+
+    <div class="hoja">
+        <h1>Panadería Zulca</h1>
+        <p class="sub">Comprobante de venta N° {{ venta.numero_comprobante }}</p>
+
+        {% if venta.estado == 'Anulada' %}
+        <div class="anulada">
+            <strong>VENTA ANULADA</strong><br>
+            Fecha: {{ venta.fecha_anulacion|date:"d/m/Y H:i" }} · Usuario: {{ venta.usuario_anulacion.nombre_usuario|default:"-" }}<br>
+            Motivo: {{ venta.motivo_anulacion|default:"-" }}
+        </div>
+        {% endif %}
+
+        <div class="datos">
+            <div><strong>Fecha:</strong> {{ venta.fecha_hora|date:"d/m/Y H:i" }}</div>
+            <div><strong>Cliente:</strong> {{ venta.cliente }}</div>
+            <div><strong>Atendió:</strong> {{ venta.usuario.nombre_usuario }}</div>
+            <div><strong>Medio de pago:</strong> {{ venta.medio_pago|default_if_none:"-" }}</div>
+            <div><strong>Estado:</strong> {{ venta.estado|default_if_none:"-" }}</div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th class="num">Cant.</th>
+                    <th class="num">Precio</th>
+                    <th class="num">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in detalles %}
+                <tr>
+                    <td>{{ d.producto.nombre }}</td>
+                    <td class="num">{{ d.cantidad }}</td>
+                    <td class="num">${{ d.precio_unitario_venta|floatformat:2 }}</td>
+                    <td class="num">${{ d.subtotal|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <p class="total">TOTAL: ${{ venta.total|floatformat:2 }}</p>
+        <p class="pie">Gracias por su compra.</p>
+    </div>
+</body>
+</html>

@@ -4,6 +4,7 @@ from . import views
 from . import api_views
 from . import generic_views as gv
 from . import views_hito2 as h2
+from . import views_hito3 as h3
 
 urlpatterns = [
     path('', RedirectView.as_view(url='/inicio/', permanent=False)),
@@ -67,10 +68,11 @@ urlpatterns = [
     path('permisos/<int:pk>/borrar/', gv.PermisoDeleteView.as_view(), name='permiso_borrar'),
 
     # ---------- VENTA ----------
-    path('ventas/', gv.VentaListView.as_view(), name='venta_lista'),
-    path('ventas/nueva/', gv.VentaCreateView.as_view(), name='venta_crear'),
-    path('ventas/<int:pk>/editar/', gv.VentaUpdateView.as_view(), name='venta_editar'),
-    path('ventas/<int:pk>/borrar/', gv.VentaDeleteView.as_view(), name='venta_borrar'),
+    path('ventas/', h3.venta_lista, name='venta_lista'),
+    path('ventas/nueva/', h3.venta_crear, name='venta_crear'),
+    path('ventas/<int:pk>/', h3.venta_detalle, name='venta_detalle'),
+    path('ventas/<int:pk>/anular/', h3.venta_anular, name='venta_anular'),
+    path('ventas/<int:pk>/comprobante/', h3.venta_comprobante, name='venta_comprobante'),
 
     # ---------- ENCARGO ----------
     path('encargos/', gv.EncargoListView.as_view(), name='encargo_lista'),
@@ -79,10 +81,6 @@ urlpatterns = [
     path('encargos/<int:pk>/borrar/', gv.EncargoDeleteView.as_view(), name='encargo_borrar'),
 
     # ---------- DETALLE VENTA ----------
-    path('detalle-ventas/', gv.DetalleVentaListView.as_view(), name='detalle_venta_lista'),
-    path('detalle-ventas/nuevo/', gv.DetalleVentaCreateView.as_view(), name='detalle_venta_crear'),
-    path('detalle-ventas/<int:pk>/editar/', gv.DetalleVentaUpdateView.as_view(), name='detalle_venta_editar'),
-    path('detalle-ventas/<int:pk>/borrar/', gv.DetalleVentaDeleteView.as_view(), name='detalle_venta_borrar'),
 
     # ---------- DETALLE ENCARGO ----------
     path('detalle-encargos/', gv.DetalleEncargoListView.as_view(), name='detalle_encargo_lista'),

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Venta {{ venta.numero_comprobante }} - Panadería Zulca</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    {% include 'core/_menu.html' %}
+    <div class="container mb-5">
+        <h1 class="mb-4">
+            Venta {{ venta.numero_comprobante }}
+            {% if venta.estado == 'Confirmada' %}
+                <span class="badge text-bg-success fs-6">Confirmada</span>
+            {% elif venta.estado == 'Anulada' %}
+                <span class="badge text-bg-danger fs-6">Anulada</span>
+            {% else %}
+                <span class="badge text-bg-secondary fs-6">{{ venta.estado|default_if_none:"-" }}</span>
+            {% endif %}
+        </h1>
+
+        <div class="bg-white p-3 rounded mb-3">
+            <div class="row">
+                <div class="col-md-4"><strong>Fecha:</strong> {{ venta.fecha_hora|date:"d/m/Y H:i" }}</div>
+                <div class="col-md-4"><strong>Cliente:</strong> {{ venta.cliente }}</div>
+                <div class="col-md-4"><strong>Registró:</strong> {{ venta.usuario.nombre_usuario }}</div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-md-4"><strong>Medio de pago:</strong> {{ venta.medio_pago|default_if_none:"-" }}</div>
+                <div class="col-md-4"><strong>Total:</strong> ${{ venta.total|floatformat:2 }}</div>
+            </div>
+        </div>
+
+        {% if venta.estado == 'Anulada' %}
+        <div class="alert alert-danger">
+            <strong>Venta anulada</strong><br>
+            Fecha: {{ venta.fecha_anulacion|date:"d/m/Y H:i" }}<br>
+            Usuario: {{ venta.usuario_anulacion.nombre_usuario|default:"-" }}<br>
+            Motivo: {{ venta.motivo_anulacion|default:"-" }}
+        </div>
+        {% endif %}
+
+        <table class="table table-bordered table-striped bg-white">
+            <thead class="table-dark">
+                <tr>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Precio unitario</th>
+                    <th>Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in detalles %}
+                <tr>
+                    <td>{{ d.producto.nombre }}</td>
+                    <td>{{ d.cantidad }}</td>
+                    <td>${{ d.precio_unitario_venta|floatformat:2 }}</td>
+                    <td>${{ d.subtotal|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center">Esta venta no tiene ítems cargados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="3" class="text-end">Total</th>
+                    <th>${{ venta.total|floatformat:2 }}</th>
+                </tr>
+            </tfoot>
+        </table>
+
+        <a href="{% url 'venta_lista' %}" class="btn btn-secondary">Volver</a>
+        {% if es_admin or 'emitir_comprobante' in permisos_usuario %}
+        <a href="{% url 'venta_comprobante' venta.pk %}" class="btn btn-primary" target="_blank">Comprobante</a>
+        {% endif %}
+        {% if venta.estado == 'Confirmada' and es_admin or venta.estado == 'Confirmada' and 'anular_venta' in permisos_usuario %}
+        <a href="{% url 'venta_anular' venta.pk %}" class="btn btn-danger">Anular</a>
+        {% endif %}
+    </div>
+</body>
+</html>

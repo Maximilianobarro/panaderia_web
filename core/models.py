@@ -110,12 +110,27 @@ class Venta(models.Model):
     estado = models.CharField(max_length=20, blank=True, null=True)
     usuario = models.ForeignKey(Usuario, on_delete=models.DO_NOTHING, db_column='usuario_id_usuario')
     cliente = models.ForeignKey(Cliente, on_delete=models.DO_NOTHING, db_column='cliente_id_cliente')
+    total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    fecha_anulacion = models.DateTimeField(blank=True, null=True)
+    motivo_anulacion = models.CharField(max_length=200, blank=True, null=True)
+    usuario_anulacion = models.ForeignKey(
+        Usuario,
+        on_delete=models.DO_NOTHING,
+        db_column='usuario_anulacion_id_usuario',
+        related_name='ventas_anuladas',
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         db_table = 'venta'
 
     def __str__(self):
         return f"Venta #{self.id_venta}"
+
+    @property
+    def numero_comprobante(self):
+        return f"0001-{self.id_venta:08d}"
 
 
 class Encargo(models.Model):
