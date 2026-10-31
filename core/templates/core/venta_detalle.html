@@ -12,8 +12,6 @@
             Venta {{ venta.numero_comprobante }}
             {% if venta.estado == 'Confirmada' %}
                 <span class="badge text-bg-success fs-6">Confirmada</span>
-            {% elif venta.estado == 'Anulada' %}
-                <span class="badge text-bg-danger fs-6">Anulada</span>
             {% else %}
                 <span class="badge text-bg-secondary fs-6">{{ venta.estado|default_if_none:"-" }}</span>
             {% endif %}
@@ -30,15 +28,6 @@
                 <div class="col-md-4"><strong>Total:</strong> ${{ venta.total|floatformat:2 }}</div>
             </div>
         </div>
-
-        {% if venta.estado == 'Anulada' %}
-        <div class="alert alert-danger">
-            <strong>Venta anulada</strong><br>
-            Fecha: {{ venta.fecha_anulacion|date:"d/m/Y H:i" }}<br>
-            Usuario: {{ venta.usuario_anulacion.nombre_usuario|default:"-" }}<br>
-            Motivo: {{ venta.motivo_anulacion|default:"-" }}
-        </div>
-        {% endif %}
 
         <table class="table table-bordered table-striped bg-white">
             <thead class="table-dark">
@@ -72,11 +61,11 @@
         </table>
 
         <a href="{% url 'venta_lista' %}" class="btn btn-secondary">Volver</a>
+        {% if es_admin or 'registrar_venta' in permisos_usuario %}
+        <a href="{% url 'venta_crear' %}" class="btn btn-success">+ Nueva venta</a>
+        {% endif %}
         {% if es_admin or 'emitir_comprobante' in permisos_usuario %}
         <a href="{% url 'venta_comprobante' venta.pk %}" class="btn btn-primary" target="_blank">Comprobante</a>
-        {% endif %}
-        {% if venta.estado == 'Confirmada' and es_admin or venta.estado == 'Confirmada' and 'anular_venta' in permisos_usuario %}
-        <a href="{% url 'venta_anular' venta.pk %}" class="btn btn-danger">Anular</a>
         {% endif %}
     </div>
 </body>

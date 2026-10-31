@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from .models import Cliente
+from .auth_utils import permiso_requerido
 
 
 def cliente_a_dict(cliente):
@@ -18,6 +19,7 @@ def cliente_a_dict(cliente):
     }
 
 
+@permiso_requerido('ver_clientes')
 @require_http_methods(["GET"])
 def api_lista_clientes(request):
     clientes = Cliente.objects.all().order_by('id_cliente')
@@ -26,6 +28,7 @@ def api_lista_clientes(request):
 
 
 @csrf_exempt
+@permiso_requerido('registrar_cliente')
 @require_http_methods(["POST"])
 def api_crear_cliente(request):
     try:
@@ -48,6 +51,7 @@ def api_crear_cliente(request):
 
 
 @csrf_exempt
+@permiso_requerido('registrar_cliente')
 @require_http_methods(["PUT"])
 def api_editar_cliente(request, pk):
     try:
@@ -71,6 +75,7 @@ def api_editar_cliente(request, pk):
 
 
 @csrf_exempt
+@permiso_requerido('registrar_cliente')
 @require_http_methods(["DELETE"])
 def api_borrar_cliente(request, pk):
     try:

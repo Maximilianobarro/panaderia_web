@@ -11,6 +11,9 @@
     {% else %}
         <a href="{% url 'login_usuario' %}" class="nav-highlight">Login</a>
     {% endif %}
+    {% if es_admin or 'ver_auditoria' in permisos_usuario %}
+        <a href="{% url 'auditoria_lista' %}">Auditoría</a>
+{% endif %}
 </nav>
 
 {% if messages %}

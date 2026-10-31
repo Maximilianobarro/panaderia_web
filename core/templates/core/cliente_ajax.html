@@ -165,7 +165,7 @@
                         <td>${c.ciudad ?? ''}</td>
                         <td>
                             <button class="btn btn-primary" onclick='editarCliente(${JSON.stringify(c)})'>Editar</button>
-                            <button class="btn btn-danger" onclick="borrarCliente(${c.id_cliente})">Borrar</button>
+                            <button class="btn btn-danger" onclick="borrarCliente(${c.id_cliente})">Dar de baja</button>
                         </td>
                     `;
                     tbody.appendChild(fila);
@@ -235,11 +235,11 @@
         }
 
         async function borrarCliente(id) {
-            if (!confirm('¿Seguro que querés borrar este cliente?')) return;
+            if (!confirm('¿Dar de baja a este cliente? Sus ventas se conservan.')) return;
             try {
                 const resp = await fetch(`${API_BASE}${id}/borrar/`, { method: 'DELETE' });
-                if (!resp.ok) throw new Error('No se pudo borrar');
-                mostrarMensaje('Cliente eliminado', 'ok');
+                if (!resp.ok) throw new Error('No se pudo dar de baja');
+                mostrarMensaje('Cliente dado de baja', 'ok');
                 cargarClientes();
             } catch (error) {
                 mostrarMensaje('Error: ' + error.message, 'err');

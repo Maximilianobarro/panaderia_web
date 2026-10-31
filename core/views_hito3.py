@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
@@ -13,11 +13,9 @@ from .models import Cliente, DetalleVenta, Producto, Usuario, Venta
 
 PERMISO_VER = 'ver_ventas'
 PERMISO_REGISTRAR = 'registrar_venta'
-PERMISO_ANULAR = 'anular_venta'
 PERMISO_COMPROBANTE = 'emitir_comprobante'
 
 ESTADO_CONFIRMADA = 'Confirmada'
-ESTADO_ANULADA = 'Anulada'
 MEDIOS_PAGO = ['Efectivo', 'Transferencia', 'Tarjeta']
 MAX_CANTIDAD = 100000
 
@@ -57,7 +55,7 @@ def _leer_items(ids, cantidades, errores):
 def _registrar_venta(request, cliente_id, medio_pago, ids, cantidades, errores):
     cliente = None
     if cliente_id.isdecimal():
-        cliente = Cliente.objects.filter(pk=int(cliente_id)).first()
+        cliente = Cliente.objects.filter(pk=int(cliente_id), activo=True).first()
     if cliente is None:
         errores.append('Elegí un cliente de la lista.')
 
@@ -148,9 +146,32 @@ def venta_crear(request):
             )
             return redirect('venta_detalle', pk=venta.pk)
 
+    if request.method == 'GET':
+        generico = Cliente.objects.filter(
+            nombre__iexact='Consumidor', apellido__iexact='Final'
+        ).first()
+        if generico:
+            cliente_id = str(generico.pk)
+
+    productos = (
+        Producto.objects.filter(estado__iexact='activo')
+        .select_related('categoria')
+        .order_by('nombre')
+    )
+    productos_json = [
+        {
+            'id': p.pk,
+            'nombre': p.nombre,
+            'precio': str(p.precio_unitario),
+            'stock': p.stock_actual or 0,
+            'categoria': p.categoria.nombre,
+        }
+        for p in productos
+    ]
+
     return render(request, 'core/venta_form.html', {
-        'clientes': Cliente.objects.order_by('apellido', 'nombre'),
-        'productos': Producto.objects.filter(estado__iexact='activo').order_by('nombre'),
+        'clientes': Cliente.objects.filter(activo=True).order_by('apellido', 'nombre'),
+        'productos_json': productos_json,
         'medios_pago': MEDIOS_PAGO,
         'errores': list(dict.fromkeys(errores)),
         'cliente_id': cliente_id,
@@ -165,7 +186,6 @@ def venta_lista(request):
     errores = []
     desde_txt = request.GET.get('desde', '').strip()
     hasta_txt = request.GET.get('hasta', '').strip()
-    estado = request.GET.get('estado', '').strip()
     cliente_id = request.GET.get('cliente', '').strip()
     producto_id = request.GET.get('producto', '').strip()
 
@@ -179,13 +199,11 @@ def venta_lista(request):
         errores.append('La fecha "desde" no puede ser posterior a "hasta".')
         desde = hasta = None
 
-    ventas = Venta.objects.select_related('cliente', 'usuario')
+    ventas = Venta.objects.all()
     if desde:
         ventas = ventas.filter(fecha_hora__gte=_inicio_dia(desde))
     if hasta:
         ventas = ventas.filter(fecha_hora__lt=_inicio_dia(hasta + timedelta(days=1)))
-    if estado in (ESTADO_CONFIRMADA, ESTADO_ANULADA):
-        ventas = ventas.filter(estado=estado)
     if cliente_id.isdecimal():
         ventas = ventas.filter(cliente_id=int(cliente_id))
     if producto_id.isdecimal():
@@ -195,21 +213,33 @@ def venta_lista(request):
             ).values('venta_id')
         )
 
-    total_confirmadas = (
-        ventas.filter(estado=ESTADO_CONFIRMADA).aggregate(t=Sum('total'))['t'] or 0
+    confirmadas = ventas.filter(estado=ESTADO_CONFIRMADA)
+    resumen = confirmadas.aggregate(suma=Sum('total'), cantidad=Count('id_venta'))
+    total_confirmadas = resumen['suma'] or 0
+    cantidad_confirmadas = resumen['cantidad'] or 0
+    ticket_promedio = (total_confirmadas / cantidad_confirmadas) if cantidad_confirmadas else 0
+    por_medio = list(
+        confirmadas.order_by()
+        .values('medio_pago')
+        .annotate(suma=Sum('total'))
+        .order_by('medio_pago')
     )
-    ventas = list(ventas.order_by('-fecha_hora', '-id_venta'))
+    ventas = list(
+        ventas.select_related('cliente', 'usuario').order_by('-fecha_hora', '-id_venta')
+    )
 
     return render(request, 'core/venta_lista.html', {
         'ventas': ventas,
         'total_confirmadas': total_confirmadas,
+        'cantidad_confirmadas': cantidad_confirmadas,
+        'ticket_promedio': ticket_promedio,
+        'por_medio': por_medio,
         'errores': errores,
         'clientes': Cliente.objects.order_by('apellido', 'nombre'),
         'productos': Producto.objects.order_by('nombre'),
         'filtros': {
             'desde': desde_txt,
             'hasta': hasta_txt,
-            'estado': estado,
             'cliente': cliente_id,
             'producto': producto_id,
         },
@@ -218,7 +248,7 @@ def venta_lista(request):
 
 def _datos_venta(pk):
     venta = get_object_or_404(
-        Venta.objects.select_related('cliente', 'usuario', 'usuario_anulacion'),
+        Venta.objects.select_related('cliente', 'usuario'),
         pk=pk,
     )
     detalles = (
@@ -246,63 +276,4 @@ def venta_comprobante(request, pk):
     return render(request, 'core/venta_comprobante.html', {
         'venta': venta,
         'detalles': detalles,
-    })
-
-
-@permiso_requerido(PERMISO_ANULAR)
-@require_http_methods(['GET', 'POST'])
-def venta_anular(request, pk):
-    venta, detalles = _datos_venta(pk)
-
-    if venta.estado != ESTADO_CONFIRMADA:
-        messages.error(request, 'Solo se pueden anular ventas en estado Confirmada.')
-        return redirect('venta_detalle', pk=pk)
-
-    error = None
-    motivo = ''
-
-    if request.method == 'POST':
-        motivo = request.POST.get('motivo', '').strip()
-        if len(motivo) < 5:
-            error = 'Escribí el motivo de la anulación (mínimo 5 caracteres).'
-        elif len(motivo) > 200:
-            error = 'El motivo no puede superar los 200 caracteres.'
-        else:
-            with transaction.atomic():
-                venta_bloqueada = Venta.objects.select_for_update().get(pk=pk)
-                if venta_bloqueada.estado != ESTADO_CONFIRMADA:
-                    messages.error(request, 'La venta ya fue anulada.')
-                    return redirect('venta_detalle', pk=pk)
-
-                lineas = list(DetalleVenta.objects.filter(venta=venta_bloqueada))
-                productos = {
-                    p.pk: p
-                    for p in Producto.objects.select_for_update()
-                    .filter(pk__in=[d.producto_id for d in lineas])
-                    .order_by('pk')
-                }
-                for d in lineas:
-                    producto = productos[d.producto_id]
-                    producto.stock_actual = (producto.stock_actual or 0) + d.cantidad
-                    producto.save(update_fields=['stock_actual'])
-
-                venta_bloqueada.estado = ESTADO_ANULADA
-                venta_bloqueada.fecha_anulacion = timezone.now()
-                venta_bloqueada.motivo_anulacion = motivo
-                venta_bloqueada.usuario_anulacion = _usuario_actual(request)
-                venta_bloqueada.save(update_fields=[
-                    'estado', 'fecha_anulacion', 'motivo_anulacion', 'usuario_anulacion',
-                ])
-
-            messages.success(
-                request,
-                f'Venta {venta.numero_comprobante} anulada. El stock fue devuelto.'
-            )
-            return redirect('venta_detalle', pk=pk)
-
-    return render(request, 'core/venta_anular.html', {
-        'venta': venta,
-        'detalles': detalles,
-        'error': error,
-        'motivo': motivo,
     })

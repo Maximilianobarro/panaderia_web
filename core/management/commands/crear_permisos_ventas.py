@@ -5,8 +5,8 @@ from core.models import Permiso
 PERMISOS = [
     ('ver_ventas', 'Consultar ventas y ver su detalle'),
     ('registrar_venta', 'Registrar nuevas ventas'),
-    ('anular_venta', 'Anular ventas y devolver el stock'),
     ('emitir_comprobante', 'Emitir el comprobante de una venta'),
+    ('ver_auditoria', 'Consultar el registro de auditoría'),
 ]
 
 

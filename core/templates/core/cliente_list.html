@@ -22,12 +22,13 @@
                     <th>Dirección</th>
                     <th>Ciudad</th>
                     <th>Fecha alta</th>
+                    <th>Estado</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 {% for cliente in clientes %}
-                <tr>
+                <tr class="{% if not cliente.activo %}table-secondary text-muted{% endif %}">
                     <td>{{ cliente.id_cliente }}</td>
                     <td>{{ cliente.nombre }}</td>
                     <td>{{ cliente.apellido }}</td>
@@ -36,14 +37,31 @@
                     <td>{{ cliente.ciudad }}</td>
                     <td>{{ cliente.fecha_alta }}</td>
                     <td>
+                        {% if cliente.activo %}
+                            <span class="badge text-bg-success">Activo</span>
+                        {% else %}
+                            <span class="badge text-bg-secondary">De baja</span>
+                        {% endif %}
+                    </td>
+                    <td>
                         <a href="{% url 'editar_cliente' cliente.pk %}" class="btn btn-sm btn-primary">Editar</a>
-                        <a href="{% url 'borrar_cliente' cliente.pk %}" class="btn btn-sm btn-danger"
-                           onclick="return confirm('¿Seguro que querés borrar este cliente?');">Borrar</a>
+                        {% if cliente.activo %}
+                        <form method="post" action="{% url 'baja_cliente' cliente.pk %}" class="d-inline"
+                              onsubmit="return confirm('¿Dar de baja a este cliente? Sus ventas se conservan.');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-warning">Dar de baja</button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="{% url 'reactivar_cliente' cliente.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-success">Dar de alta</button>
+                        </form>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="8" class="text-center">No hay clientes cargados todavía.</td>
+                    <td colspan="9" class="text-center">No hay clientes cargados todavía.</td>
                 </tr>
                 {% endfor %}
             </tbody>

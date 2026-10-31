@@ -20,21 +20,13 @@
 
         <form method="get" class="bg-white p-3 rounded mb-3">
             <div class="row g-2 align-items-end">
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label" for="desde">Desde</label>
                     <input type="date" id="desde" name="desde" value="{{ filtros.desde }}" class="form-control">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label" for="hasta">Hasta</label>
                     <input type="date" id="hasta" name="hasta" value="{{ filtros.hasta }}" class="form-control">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="estado">Estado</label>
-                    <select id="estado" name="estado" class="form-select">
-                        <option value="">Todos</option>
-                        <option value="Confirmada" {% if filtros.estado == 'Confirmada' %}selected{% endif %}>Confirmada</option>
-                        <option value="Anulada" {% if filtros.estado == 'Anulada' %}selected{% endif %}>Anulada</option>
-                    </select>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label" for="cliente">Cliente</label>
@@ -61,10 +53,36 @@
             </div>
         </form>
 
-        <p class="mb-2">
-            <strong>{{ ventas|length }}</strong> venta(s) encontradas.
-            Total de ventas confirmadas: <strong>${{ total_confirmadas|floatformat:2 }}</strong>
-        </p>
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3">
+                <div class="bg-white text-dark p-3 rounded h-100">
+                    <div class="text-muted small">Total vendido</div>
+                    <div class="fs-4 fw-bold">${{ total_confirmadas|floatformat:2 }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="bg-white text-dark p-3 rounded h-100">
+                    <div class="text-muted small">Ventas confirmadas</div>
+                    <div class="fs-4 fw-bold">{{ cantidad_confirmadas }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="bg-white text-dark p-3 rounded h-100">
+                    <div class="text-muted small">Ticket promedio</div>
+                    <div class="fs-4 fw-bold">${{ ticket_promedio|floatformat:2 }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="bg-white text-dark p-3 rounded h-100">
+                    <div class="text-muted small mb-1">Por medio de pago</div>
+                    {% for m in por_medio %}
+                    <div class="small">{{ m.medio_pago|default:"Sin dato" }}: <strong>${{ m.suma|floatformat:2 }}</strong></div>
+                    {% empty %}
+                    <div class="small text-muted">-</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
 
         <table class="table table-bordered table-striped bg-white">
             <thead class="table-dark">
@@ -90,8 +108,6 @@
                     <td>
                         {% if v.estado == 'Confirmada' %}
                             <span class="badge text-bg-success">Confirmada</span>
-                        {% elif v.estado == 'Anulada' %}
-                            <span class="badge text-bg-danger">Anulada</span>
                         {% else %}
                             <span class="badge text-bg-secondary">{{ v.estado|default_if_none:"-" }}</span>
                         {% endif %}
@@ -101,9 +117,6 @@
                         <a href="{% url 'venta_detalle' v.pk %}" class="btn btn-sm btn-primary">Ver</a>
                         {% if es_admin or 'emitir_comprobante' in permisos_usuario %}
                         <a href="{% url 'venta_comprobante' v.pk %}" class="btn btn-sm btn-secondary" target="_blank">Comprobante</a>
-                        {% endif %}
-                        {% if v.estado == 'Confirmada' and es_admin or v.estado == 'Confirmada' and 'anular_venta' in permisos_usuario %}
-                        <a href="{% url 'venta_anular' v.pk %}" class="btn btn-sm btn-danger">Anular</a>
                         {% endif %}
                     </td>
                 </tr>

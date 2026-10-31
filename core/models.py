@@ -56,6 +56,7 @@ class Cliente(models.Model):
     numero = models.CharField(max_length=10, blank=True, null=True)
     ciudad = models.CharField(max_length=50, blank=True, null=True)
     fecha_alta = models.DateField(blank=True, null=True)
+    activo = models.BooleanField(default=True)
 
     class Meta:
         db_table = 'cliente'
@@ -175,3 +176,23 @@ class DetalleEncargo(models.Model):
     class Meta:
         db_table = 'detalle_encargo'
         unique_together = (('producto', 'encargo'),)
+
+
+class LogAuditoria(models.Model):
+    id_log = models.AutoField(primary_key=True)
+    fecha_hora = models.DateTimeField()
+    usuario = models.ForeignKey(
+        Usuario, on_delete=models.DO_NOTHING, db_column='usuario_id_usuario',
+        null=True, blank=True, related_name='logs_auditoria',
+    )
+    entidad = models.CharField(max_length=50)
+    id_registro = models.IntegerField()
+    accion = models.CharField(max_length=20)
+    valores_anteriores = models.TextField(blank=True, null=True)
+    valores_actuales = models.TextField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'log_auditoria'
+
+    def __str__(self):
+        return f"{self.accion} {self.entidad} #{self.id_registro}"

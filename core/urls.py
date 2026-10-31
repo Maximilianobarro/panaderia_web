@@ -3,26 +3,27 @@ from django.views.generic import RedirectView
 from . import views
 from . import api_views
 from . import generic_views as gv
+from . import views_auditoria as aud
 from . import views_hito2 as h2
 from . import views_hito3 as h3
 
 urlpatterns = [
     path('', RedirectView.as_view(url='/inicio/', permanent=False)),
+
+    # ---------- CLIENTES ----------
     path('clientes/', views.lista_clientes, name='lista_clientes'),
     path('clientes/nuevo/', views.crear_cliente, name='crear_cliente'),
     path('clientes/<int:pk>/editar/', views.editar_cliente, name='editar_cliente'),
-    path('clientes/<int:pk>/borrar/', views.borrar_cliente, name='borrar_cliente'),
-
-    
+    path('clientes/<int:pk>/baja/', views.baja_cliente, name='baja_cliente'),
+    path('clientes/<int:pk>/reactivar/', views.reactivar_cliente, name='reactivar_cliente'),
     path('clientes-ajax/', views.clientes_ajax, name='clientes_ajax'),
 
-    
     path('api/clientes/', api_views.api_lista_clientes, name='api_lista_clientes'),
     path('api/clientes/crear/', api_views.api_crear_cliente, name='api_crear_cliente'),
     path('api/clientes/<int:pk>/editar/', api_views.api_editar_cliente, name='api_editar_cliente'),
     path('api/clientes/<int:pk>/borrar/', api_views.api_borrar_cliente, name='api_borrar_cliente'),
 
-    
+    # ---------- INICIO Y PRODUCTOS ----------
     path('inicio/', views.dashboard, name='dashboard'),
     path('productos/', gv.ProductoListView.as_view(), name='producto_lista'),
     path('productos/nuevo/', gv.ProductoCreateView.as_view(), name='producto_crear'),
@@ -67,20 +68,20 @@ urlpatterns = [
     path('permisos/<int:pk>/editar/', gv.PermisoUpdateView.as_view(), name='permiso_editar'),
     path('permisos/<int:pk>/borrar/', gv.PermisoDeleteView.as_view(), name='permiso_borrar'),
 
-    # ---------- VENTA ----------
+    # ---------- VENTA (Hito Nº3: sin anulación) ----------
     path('ventas/', h3.venta_lista, name='venta_lista'),
     path('ventas/nueva/', h3.venta_crear, name='venta_crear'),
     path('ventas/<int:pk>/', h3.venta_detalle, name='venta_detalle'),
-    path('ventas/<int:pk>/anular/', h3.venta_anular, name='venta_anular'),
     path('ventas/<int:pk>/comprobante/', h3.venta_comprobante, name='venta_comprobante'),
+
+    # ---------- AUDITORIA (Hito Nº4) ----------
+    path('auditoria/', aud.auditoria_lista, name='auditoria_lista'),
 
     # ---------- ENCARGO ----------
     path('encargos/', gv.EncargoListView.as_view(), name='encargo_lista'),
     path('encargos/nuevo/', gv.EncargoCreateView.as_view(), name='encargo_crear'),
     path('encargos/<int:pk>/editar/', gv.EncargoUpdateView.as_view(), name='encargo_editar'),
     path('encargos/<int:pk>/borrar/', gv.EncargoDeleteView.as_view(), name='encargo_borrar'),
-
-    # ---------- DETALLE VENTA ----------
 
     # ---------- DETALLE ENCARGO ----------
     path('detalle-encargos/', gv.DetalleEncargoListView.as_view(), name='detalle_encargo_lista'),

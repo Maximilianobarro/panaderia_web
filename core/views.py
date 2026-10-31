@@ -2,6 +2,7 @@ import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from .models import Cliente, Producto, Categoria
 from .auth_utils import login_requerido, permiso_requerido
@@ -10,7 +11,7 @@ from .auth_utils import login_requerido, permiso_requerido
 # ---------- Clientes ----------
 @permiso_requerido('ver_clientes')
 def lista_clientes(request):
-    clientes = Cliente.objects.all()
+    clientes = Cliente.objects.order_by('-activo', 'apellido', 'nombre')
     return render(request, 'core/cliente_list.html', {'clientes': clientes})
 
 
@@ -50,9 +51,25 @@ def clientes_ajax(request):
 
 
 @permiso_requerido('registrar_cliente')
-def borrar_cliente(request, pk):
+@require_http_methods(['POST'])
+def baja_cliente(request, pk):
     cliente = get_object_or_404(Cliente, pk=pk)
-    cliente.delete()
+    if cliente.nombre.lower() == 'consumidor' and cliente.apellido.lower() == 'final':
+        messages.error(request, 'El cliente "Consumidor Final" no se puede dar de baja.')
+        return redirect('lista_clientes')
+    cliente.activo = False
+    cliente.save(update_fields=['activo'])
+    messages.success(request, f'{cliente} fue dado de baja. Sus ventas se conservan.')
+    return redirect('lista_clientes')
+
+
+@permiso_requerido('registrar_cliente')
+@require_http_methods(['POST'])
+def reactivar_cliente(request, pk):
+    cliente = get_object_or_404(Cliente, pk=pk)
+    cliente.activo = True
+    cliente.save(update_fields=['activo'])
+    messages.success(request, f'{cliente} fue dado de alta de nuevo.')
     return redirect('lista_clientes')
 
 

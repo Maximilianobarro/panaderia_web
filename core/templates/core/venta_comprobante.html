@@ -16,8 +16,13 @@
         th { background: #f2f2f2; }
         td.num, th.num { text-align: right; }
         .total { text-align: right; font-size: 20px; font-weight: bold; }
-        .anulada { border: 2px solid #b00020; color: #b00020; padding: 12px; margin-bottom: 20px; }
         .pie { text-align: center; color: #555; margin-top: 24px; font-size: 13px; }
+        .hoja.ticket { max-width: 300px; padding: 12px; border: 1px solid #999; font-family: "Courier New", monospace; font-size: 13px; }
+        .ticket h1 { font-size: 18px; text-align: center; }
+        .ticket .sub { text-align: center; }
+        .ticket .datos { grid-template-columns: 1fr; }
+        .ticket th, .ticket td { padding: 3px 2px; }
+        .ticket .total { font-size: 16px; }
         @media print {
             body { background: #fff; padding: 0; }
             .barra { display: none; }
@@ -28,20 +33,13 @@
 <body>
     <div class="barra">
         <button type="button" onclick="window.print()">Imprimir / Guardar como PDF</button>
+        <button type="button" id="formato">Formato ticket</button>
         <a href="{% url 'venta_detalle' venta.pk %}">Volver</a>
     </div>
 
     <div class="hoja">
         <h1>Panadería Zulca</h1>
         <p class="sub">Comprobante de venta N° {{ venta.numero_comprobante }}</p>
-
-        {% if venta.estado == 'Anulada' %}
-        <div class="anulada">
-            <strong>VENTA ANULADA</strong><br>
-            Fecha: {{ venta.fecha_anulacion|date:"d/m/Y H:i" }} · Usuario: {{ venta.usuario_anulacion.nombre_usuario|default:"-" }}<br>
-            Motivo: {{ venta.motivo_anulacion|default:"-" }}
-        </div>
-        {% endif %}
 
         <div class="datos">
             <div><strong>Fecha:</strong> {{ venta.fecha_hora|date:"d/m/Y H:i" }}</div>
@@ -75,5 +73,12 @@
         <p class="total">TOTAL: ${{ venta.total|floatformat:2 }}</p>
         <p class="pie">Gracias por su compra.</p>
     </div>
+    <script>
+        document.getElementById('formato').addEventListener('click', function () {
+            var hoja = document.querySelector('.hoja');
+            var esTicket = hoja.classList.toggle('ticket');
+            this.textContent = esTicket ? 'Formato hoja completa' : 'Formato ticket';
+        });
+    </script>
 </body>
 </html>
