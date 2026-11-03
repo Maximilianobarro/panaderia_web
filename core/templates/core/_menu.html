@@ -12,7 +12,7 @@
         <a href="{% url 'login_usuario' %}" class="nav-highlight">Login</a>
     {% endif %}
     {% if es_admin or 'ver_auditoria' in permisos_usuario %}
-        <a href="{% url 'auditoria_lista' %}">Auditoría</a>
+        <a href="{% url 'auditoria_lista' %}" class="nav-auditoria">Auditoría</a>
 {% endif %}
 </nav>
 

@@ -104,6 +104,11 @@
   font-weight: bold;
 }
 
+.nav-auditoria {
+  color: #c0392b;
+  font-weight: bold;
+}
+
 .mensajes {
   padding: 12px 30px 0;
 }

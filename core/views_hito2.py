@@ -46,10 +46,6 @@ def _es_administrador(usuario):
     return usuario.rol.nombre_rol.strip().lower() == ROL_ADMIN.lower()
 
 
-def _clave_valida(clave):
-    return len(clave) >= LARGO_MIN_CLAVE and bool(clave.strip())
-
-
 def generar_clave_temporal(largo=10):
     alfabeto = ''.join(c for c in string.ascii_letters if c not in 'lIO') + '23456789'
     while True:

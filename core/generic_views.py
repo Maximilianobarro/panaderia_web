@@ -1,15 +1,15 @@
 from django.urls import reverse_lazy
-from .auth_utils import LoginRequeridoMixin, PermisoRequeridoMixin
+from .auth_utils import PermisoRequeridoMixin
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from .models import (
     Rol, Categoria,
-    Venta, Encargo, DetalleVenta, DetalleEncargo,
-    Permiso, Producto, 
+    Encargo, DetalleEncargo,
+    Permiso, Producto,
 )
 from .forms import (
     RolForm, CategoriaForm,
-    VentaForm, EncargoForm, DetalleVentaForm, DetalleEncargoForm,
-    PermisoForm, ProductoForm, 
+    EncargoForm, DetalleEncargoForm,
+    PermisoForm, ProductoForm,
 )
 
 
@@ -70,18 +70,12 @@ CategoriaListView, CategoriaCreateView, CategoriaUpdateView, CategoriaDeleteView
     Categoria, CategoriaForm, 'categoria', 'Categoría',
     permiso_ver='ver_categorias', permiso_editar='gestionar_roles'
 )
-VentaListView, VentaCreateView, VentaUpdateView, VentaDeleteView = crud_views(
-    Venta, VentaForm, 'venta', 'Venta',
-    permiso_ver='ver_ventas', permiso_editar='registrar_venta'
-)
 EncargoListView, EncargoCreateView, EncargoUpdateView, EncargoDeleteView = crud_views(
     Encargo, EncargoForm, 'encargo', 'Encargo',
     permiso_ver='ver_ventas', permiso_editar='registrar_venta'
 )
-DetalleVentaListView, DetalleVentaCreateView, DetalleVentaUpdateView, DetalleVentaDeleteView = crud_views(
-    DetalleVenta, DetalleVentaForm, 'detalle_venta', 'Detalle de venta',
-    permiso_ver='ver_ventas', permiso_editar='registrar_venta'
-)
+EncargoListView.template_name = 'core/encargo_list.html'
+EncargoListView.queryset = Encargo.objects.select_related('cliente').order_by('-id_encargo')
 DetalleEncargoListView, DetalleEncargoCreateView, DetalleEncargoUpdateView, DetalleEncargoDeleteView = crud_views(
     DetalleEncargo, DetalleEncargoForm, 'detalle_encargo', 'Detalle de encargo',
     permiso_ver='ver_ventas', permiso_editar='registrar_venta'

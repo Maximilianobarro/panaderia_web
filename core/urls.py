@@ -53,6 +53,7 @@ urlpatterns = [
     path('usuarios/alta/', h2.usuario_alta, name='usuario_alta'),
     path('usuarios/<int:pk>/modificar/', h2.usuario_modificar, name='usuario_modificar'),
     path('usuarios/<int:pk>/baja/', h2.usuario_baja, name='usuario_baja'),
+    path('usuarios/<int:pk>/reactivar/', h2.usuario_reactivar, name='usuario_reactivar'),
     path('usuarios/<int:pk>/restablecer-clave/', h2.usuario_restablecer_clave, name='usuario_restablecer_clave'),
 
     # ---------- LOGIN / LOGOUT ----------

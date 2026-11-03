@@ -140,6 +140,8 @@ class Encargo(models.Model):
     fecha_entrega_prevista = models.DateField(blank=True, null=True)
     senia = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     estado = models.CharField(max_length=20, blank=True, null=True)
+    cantidad_items = models.PositiveIntegerField(blank=True, null=True)
+    medio_pago = models.CharField(max_length=20, blank=True, null=True)
     observacion = models.CharField(max_length=200, blank=True, null=True)
     usuario = models.ForeignKey(Usuario, on_delete=models.DO_NOTHING, db_column='usuario_id_usuario')
     cliente = models.ForeignKey(Cliente, on_delete=models.DO_NOTHING, db_column='cliente_id_cliente')

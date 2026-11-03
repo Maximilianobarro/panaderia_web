@@ -54,6 +54,11 @@
                                 <a href="{% url 'usuario_restablecer_clave' u.pk %}" class="boton boton-chico boton-secundario">Restablecer clave</a>
                                 {% if u.activo and u.id_usuario != request.session.usuario_id %}
                                 <a href="{% url 'usuario_baja' u.pk %}" class="boton boton-chico boton-peligro">Dar de baja</a>
+                                {% elif not u.activo %}
+                                <form method="post" action="{% url 'usuario_reactivar' u.pk %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="boton boton-chico">Dar de alta</button>
+                                </form>
                                 {% endif %}
                             </p>
                         </td>

@@ -3,6 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
+from django.db.models import Q
 from django.views.decorators.http import require_http_methods
 from .models import Cliente, Producto, Categoria
 from .auth_utils import login_requerido, permiso_requerido
@@ -15,34 +16,62 @@ def lista_clientes(request):
     return render(request, 'core/cliente_list.html', {'clientes': clientes})
 
 
+CAMPOS_CLIENTE = ('nombre', 'apellido', 'email', 'calle', 'numero', 'ciudad')
+
+
+def _datos_cliente(post):
+    return {c: (post.get(c) or '').strip() for c in CAMPOS_CLIENTE}
+
+
+def _cliente_repetido(datos, excluir_pk=None):
+    filtro = Q(nombre__iexact=datos['nombre']) & Q(apellido__iexact=datos['apellido'])
+    if datos['email']:
+        filtro &= Q(email__iexact=datos['email'])
+    else:
+        filtro &= Q(email__isnull=True) | Q(email='')
+    repetidos = Cliente.objects.filter(filtro)
+    if excluir_pk is not None:
+        repetidos = repetidos.exclude(pk=excluir_pk)
+    return repetidos.first()
+
+
+def _error_repetido(repetido):
+    if repetido.activo:
+        return 'Ya existe un cliente con ese nombre, apellido y email.'
+    return 'Ya existe un cliente con esos datos, pero está dado de baja. Reactivalo desde la lista con "Dar de alta".'
+
+
 @permiso_requerido('registrar_cliente')
 def crear_cliente(request):
+    datos = {c: '' for c in CAMPOS_CLIENTE}
+    error = None
     if request.method == 'POST':
-        Cliente.objects.create(
-            nombre=request.POST.get('nombre'),
-            apellido=request.POST.get('apellido'),
-            email=request.POST.get('email'),
-            calle=request.POST.get('calle'),
-            numero=request.POST.get('numero'),
-            ciudad=request.POST.get('ciudad'),
-        )
-        return redirect('lista_clientes')
-    return render(request, 'core/cliente_form.html')
+        datos = _datos_cliente(request.POST)
+        repetido = _cliente_repetido(datos)
+        if repetido:
+            error = _error_repetido(repetido)
+        else:
+            Cliente.objects.create(**datos)
+            return redirect('lista_clientes')
+    return render(request, 'core/cliente_form.html', {'datos': datos, 'error': error})
 
 
 @permiso_requerido('registrar_cliente')
 def editar_cliente(request, pk):
     cliente = get_object_or_404(Cliente, pk=pk)
+    datos = {c: getattr(cliente, c) or '' for c in CAMPOS_CLIENTE}
+    error = None
     if request.method == 'POST':
-        cliente.nombre = request.POST.get('nombre')
-        cliente.apellido = request.POST.get('apellido')
-        cliente.email = request.POST.get('email')
-        cliente.calle = request.POST.get('calle')
-        cliente.numero = request.POST.get('numero')
-        cliente.ciudad = request.POST.get('ciudad')
-        cliente.save()
-        return redirect('lista_clientes')
-    return render(request, 'core/cliente_form.html', {'cliente': cliente})
+        datos = _datos_cliente(request.POST)
+        repetido = _cliente_repetido(datos, excluir_pk=cliente.pk)
+        if repetido:
+            error = _error_repetido(repetido)
+        else:
+            for campo, valor in datos.items():
+                setattr(cliente, campo, valor)
+            cliente.save()
+            return redirect('lista_clientes')
+    return render(request, 'core/cliente_form.html', {'cliente': cliente, 'datos': datos, 'error': error})
 
 
 @permiso_requerido('ver_clientes')
