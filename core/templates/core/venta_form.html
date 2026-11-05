@@ -77,12 +77,6 @@
                         <span id="total">$0.00</span>
                     </div>
 
-                    <div id="bloque-efectivo" class="mt-3 d-none">
-                        <label class="form-label mb-1" for="recibido">Efectivo recibido</label>
-                        <input type="number" id="recibido" min="0" step="0.01" class="form-control">
-                        <div id="vuelto" class="mt-1 fw-semibold"></div>
-                    </div>
-
                     <div class="d-grid gap-2 mt-3">
                         <button type="submit" id="confirmar" class="btn btn-success btn-lg" disabled>Confirmar venta</button>
                         <div class="d-flex gap-2">
@@ -119,10 +113,6 @@
         var elVacio = document.getElementById('ticket-vacio');
         var elTotal = document.getElementById('total');
         var elConfirmar = document.getElementById('confirmar');
-        var elMedio = document.getElementById('medio_pago');
-        var elBloqueEfectivo = document.getElementById('bloque-efectivo');
-        var elRecibido = document.getElementById('recibido');
-        var elVuelto = document.getElementById('vuelto');
         var elForm = document.getElementById('venta-form');
 
         function dinero(n) { return '$' + n.toFixed(2); }
@@ -298,23 +288,8 @@
         }
 
         function actualizarCobro() {
-            var total = totalActual();
-            elTotal.textContent = dinero(total);
+            elTotal.textContent = dinero(totalActual());
             elConfirmar.disabled = orden.length === 0;
-            var esEfectivo = elMedio.value === 'Efectivo';
-            elBloqueEfectivo.classList.toggle('d-none', !esEfectivo);
-            elVuelto.textContent = '';
-            elVuelto.className = 'mt-1 fw-semibold';
-            var recibido = parseFloat(elRecibido.value);
-            if (esEfectivo && !isNaN(recibido) && recibido > 0 && total > 0) {
-                if (recibido >= total) {
-                    elVuelto.textContent = 'Vuelto: ' + dinero(recibido - total);
-                    elVuelto.classList.add('text-success');
-                } else {
-                    elVuelto.textContent = 'Faltan: ' + dinero(total - recibido);
-                    elVuelto.classList.add('text-danger');
-                }
-            }
         }
 
         function actualizar() {
@@ -372,11 +347,6 @@
         });
         document.addEventListener('click', function (e) {
             if (e.target !== elBuscar && !elLista.contains(e.target)) { cerrar(); }
-        });
-        elMedio.addEventListener('change', actualizarCobro);
-        elRecibido.addEventListener('input', actualizarCobro);
-        elRecibido.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') { e.preventDefault(); }
         });
         document.getElementById('vaciar').addEventListener('click', function () {
             cantidades = {};

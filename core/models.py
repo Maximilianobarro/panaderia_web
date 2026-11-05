@@ -135,22 +135,45 @@ class Venta(models.Model):
 
 
 class Encargo(models.Model):
+    ESTADO_PENDIENTE = 'Pendiente'
+    ESTADO_ENTREGADO = 'Entregado'
+    ESTADO_CANCELADO = 'Cancelado'
+
     id_encargo = models.AutoField(primary_key=True)
     fecha_pedido = models.DateField(blank=True, null=True)
     fecha_entrega_prevista = models.DateField(blank=True, null=True)
     senia = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     estado = models.CharField(max_length=20, blank=True, null=True)
-    cantidad_items = models.PositiveIntegerField(blank=True, null=True)
     medio_pago = models.CharField(max_length=20, blank=True, null=True)
     observacion = models.CharField(max_length=200, blank=True, null=True)
     usuario = models.ForeignKey(Usuario, on_delete=models.DO_NOTHING, db_column='usuario_id_usuario')
     cliente = models.ForeignKey(Cliente, on_delete=models.DO_NOTHING, db_column='cliente_id_cliente')
+    fecha_entrega_real = models.DateTimeField(blank=True, null=True)
+    fecha_anulacion = models.DateTimeField(blank=True, null=True)
+    motivo_anulacion = models.CharField(max_length=200, blank=True, null=True)
+    usuario_anulacion = models.ForeignKey(
+        Usuario,
+        on_delete=models.DO_NOTHING,
+        db_column='usuario_anulacion_id_usuario',
+        related_name='encargos_anulados',
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         db_table = 'encargo'
 
     def __str__(self):
         return f"Encargo #{self.id_encargo}"
+
+    @property
+    def numero_comprobante(self):
+        return f"0002-{self.id_encargo:08d}"
+
+    @property
+    def saldo(self):
+        return self.total - (self.senia or 0)
 
 
 class DetalleVenta(models.Model):

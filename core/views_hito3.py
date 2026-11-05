@@ -1,9 +1,8 @@
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone as dt_timezone
 from decimal import Decimal
 
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Count, Sum
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
@@ -18,6 +17,54 @@ PERMISO_COMPROBANTE = 'emitir_comprobante'
 ESTADO_CONFIRMADA = 'Confirmada'
 MEDIOS_PAGO = ['Efectivo', 'Transferencia', 'Tarjeta']
 MAX_CANTIDAD = 100000
+ZONA_LOCAL = dt_timezone(timedelta(hours=-3))
+MESES = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+]
+
+
+def _hoy():
+    return timezone.now().astimezone(ZONA_LOCAL).date()
+
+
+def _resumen_mensual(valor_elegido):
+    hoy = _hoy()
+    actual = (hoy.year, hoy.month)
+    filas = {actual: {'cantidad': 0, 'total': 0, 'medios': {}}}
+    ventas = Venta.objects.filter(estado=ESTADO_CONFIRMADA).values_list('fecha_hora', 'total', 'medio_pago')
+    for fecha, total, medio in ventas:
+        local = fecha.astimezone(ZONA_LOCAL)
+        fila = filas.setdefault((local.year, local.month), {'cantidad': 0, 'total': 0, 'medios': {}})
+        fila['cantidad'] += 1
+        fila['total'] += total
+        fila['medios'][medio] = fila['medios'].get(medio, 0) + total
+    claves = sorted(filas, reverse=True)
+    try:
+        pedido = datetime.strptime(valor_elegido, '%Y-%m')
+        elegido = (pedido.year, pedido.month)
+    except (TypeError, ValueError):
+        elegido = actual
+    if elegido not in filas:
+        elegido = actual
+    opciones = [
+        {'valor': f'{a}-{m:02d}', 'texto': f'{MESES[m - 1]} de {a}'}
+        for a, m in claves
+    ]
+    anio, mes = elegido
+    fila = filas[elegido]
+    inicio = date(anio, mes, 1)
+    siguiente = date(anio + 1, 1, 1) if mes == 12 else date(anio, mes + 1, 1)
+    resumen = {
+        'valor': f'{anio}-{mes:02d}',
+        'desde': inicio.isoformat(),
+        'hasta': (siguiente - timedelta(days=1)).isoformat(),
+        'cantidad': fila['cantidad'],
+        'total': fila['total'],
+        'promedio': (fila['total'] / fila['cantidad']) if fila['cantidad'] else 0,
+        'medios': [fila['medios'].get(m, 0) for m in MEDIOS_PAGO],
+    }
+    return opciones, resumen
 
 
 def _usuario_actual(request):
@@ -32,7 +79,7 @@ def _parse_fecha(texto):
 
 
 def _inicio_dia(fecha):
-    return timezone.make_aware(datetime.combine(fecha, time.min))
+    return datetime.combine(fecha, time.min, tzinfo=ZONA_LOCAL)
 
 
 def _leer_items(ids, cantidades, errores):
@@ -188,6 +235,12 @@ def venta_lista(request):
     hasta_txt = request.GET.get('hasta', '').strip()
     cliente_id = request.GET.get('cliente', '').strip()
     producto_id = request.GET.get('producto', '').strip()
+    mes_txt = request.GET.get('mes', '').strip()
+    opciones_mes, resumen_mes = _resumen_mensual(mes_txt)
+    if mes_txt and not desde_txt and not hasta_txt:
+        if resumen_mes['valor'] == mes_txt:
+            desde_txt = resumen_mes['desde']
+            hasta_txt = resumen_mes['hasta']
 
     desde = _parse_fecha(desde_txt) if desde_txt else None
     hasta = _parse_fecha(hasta_txt) if hasta_txt else None
@@ -213,27 +266,15 @@ def venta_lista(request):
             ).values('venta_id')
         )
 
-    confirmadas = ventas.filter(estado=ESTADO_CONFIRMADA)
-    resumen = confirmadas.aggregate(suma=Sum('total'), cantidad=Count('id_venta'))
-    total_confirmadas = resumen['suma'] or 0
-    cantidad_confirmadas = resumen['cantidad'] or 0
-    ticket_promedio = (total_confirmadas / cantidad_confirmadas) if cantidad_confirmadas else 0
-    por_medio = list(
-        confirmadas.order_by()
-        .values('medio_pago')
-        .annotate(suma=Sum('total'))
-        .order_by('medio_pago')
-    )
     ventas = list(
         ventas.select_related('cliente', 'usuario').order_by('-fecha_hora', '-id_venta')
     )
 
     return render(request, 'core/venta_lista.html', {
         'ventas': ventas,
-        'total_confirmadas': total_confirmadas,
-        'cantidad_confirmadas': cantidad_confirmadas,
-        'ticket_promedio': ticket_promedio,
-        'por_medio': por_medio,
+        'opciones_mes': opciones_mes,
+        'resumen_mes': resumen_mes,
+        'medios_pago': MEDIOS_PAGO,
         'errores': errores,
         'clientes': Cliente.objects.order_by('apellido', 'nombre'),
         'productos': Producto.objects.order_by('nombre'),

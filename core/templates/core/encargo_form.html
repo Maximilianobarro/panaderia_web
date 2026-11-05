@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Nuevo encargo - Panadería Zulca</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .panel { background: #fff; color: #3e2a1e; border: 1px solid #e4d6c1; border-radius: 14px; padding: 16px; }
+        .combo-lista { position: absolute; left: 0; right: 0; top: 100%; z-index: 20; max-height: 340px; overflow-y: auto; margin: 4px 0 0; padding: 4px; background: #fff; border: 1px solid #e4d6c1; border-radius: 12px; box-shadow: 0 8px 24px rgba(62, 42, 30, 0.2); }
+        .combo-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; cursor: pointer; }
+        .combo-item.activo { background: #f6ead8; }
+        .combo-item.agotado { opacity: 0.5; cursor: not-allowed; }
+        .combo-nombre { font-weight: 600; }
+        .combo-precio { font-weight: 700; color: #8b5e34; text-align: right; white-space: nowrap; }
+        .ticket-lineas { max-height: 340px; overflow-y: auto; }
+        .linea { display: flex; align-items: center; gap: 6px; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .linea-nombre { flex: 1; min-width: 0; }
+        .linea .cant { width: 54px; text-align: center; }
+        .linea-subtotal { min-width: 70px; text-align: right; font-weight: 600; }
+        @media (min-width: 992px) { .ticket-sticky { position: sticky; top: 16px; } }
+    </style>
+</head>
+<body class="bg-light">
+    {% include 'core/_menu.html' %}
+    <div class="container-fluid px-4 mb-5">
+        <h1 class="mb-3">Nuevo encargo</h1>
+
+        {% if errores %}
+        <div class="alert alert-danger">
+            <ul class="mb-0">
+                {% for e in errores %}<li>{{ e }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="row g-3">
+            <div class="col-lg-8">
+                <div class="panel">
+                    <label class="form-label" for="buscar">Producto</label>
+                    <div class="position-relative">
+                        <input type="text" id="buscar" class="form-control form-control-lg" placeholder="Escribí o elegí un producto..." autocomplete="off" role="combobox" aria-expanded="false" aria-controls="lista-productos" autofocus>
+                        <ul id="lista-productos" class="combo-lista list-unstyled d-none" role="listbox"></ul>
+                    </div>
+                    <p class="text-muted small mt-2 mb-0">Escribí para filtrar, usá ↑ ↓ y Enter, o hacé clic en un producto de la lista.</p>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <form method="post" id="encargo-form" class="panel ticket-sticky">
+                    {% csrf_token %}
+                    <h5 class="mb-3">Encargo actual</h5>
+
+                    <div class="mb-2">
+                        <label class="form-label mb-1" for="cliente">Cliente</label>
+                        <select id="cliente" name="cliente" class="form-select" required>
+                            <option value="">Seleccionar...</option>
+                            {% for c in clientes %}
+                            <option value="{{ c.pk }}" {% if datos.cliente == c.pk|stringformat:"s" %}selected{% endif %}>{{ c }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label mb-1" for="fecha_entrega">Fecha de entrega</label>
+                        <input type="date" id="fecha_entrega" name="fecha_entrega" class="form-control" min="{{ hoy }}" value="{{ datos.fecha_entrega }}" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label mb-1" for="senia">Seña (opcional)</label>
+                        <input type="number" id="senia" name="senia" min="0" step="0.01" class="form-control" value="{{ datos.senia }}">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label mb-1" for="medio_pago">Medio de pago de la seña</label>
+                        <select id="medio_pago" name="medio_pago" class="form-select">
+                            <option value="">Seleccionar...</option>
+                            {% for m in medios_pago %}
+                            <option value="{{ m }}" {% if datos.medio_pago == m %}selected{% endif %}>{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label mb-1" for="observacion">Observación</label>
+                        <textarea id="observacion" name="observacion" rows="2" maxlength="200" class="form-control">{{ datos.observacion }}</textarea>
+                    </div>
+
+                    <div id="lineas" class="ticket-lineas mb-2"></div>
+                    <p id="ticket-vacio" class="text-muted">Elegí un producto para agregarlo.</p>
+
+                    <div class="d-flex justify-content-between fs-4 fw-bold border-top pt-2">
+                        <span>Total</span>
+                        <span id="total">$0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <span>Seña</span>
+                        <span id="senia-valor">$0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between fw-semibold">
+                        <span>Saldo a cobrar</span>
+                        <span id="saldo">$0.00</span>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-3">
+                        <button type="submit" id="confirmar" class="btn btn-success btn-lg" disabled>Registrar encargo</button>
+                        <div class="d-flex gap-2">
+                            <button type="button" id="vaciar" class="btn btn-outline-secondary flex-fill">Vaciar</button>
+                            <a href="{% url 'encargo_lista' %}" class="btn btn-outline-secondary flex-fill">Cancelar</a>
+                        </div>
+                    </div>
+                    <p class="text-muted small mt-3 mb-0">La fecha de pedido, el número, el usuario y el estado (Pendiente) se registran automáticamente. El stock se descuenta al registrar y se repone si el encargo se cancela.</p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{ productos_json|json_script:"productos-data" }}
+    {{ lineas|json_script:"lineas-data" }}
+
+    <script>
+    (function () {
+        var UMBRAL_BAJO = 5;
+        var MAX_RESULTADOS = 30;
+        var productos = JSON.parse(document.getElementById('productos-data').textContent);
+        var iniciales = JSON.parse(document.getElementById('lineas-data').textContent);
+        var porId = {};
+        productos.forEach(function (p) { porId[p.id] = p; });
+
+        var cantidades = {};
+        var orden = [];
+        var indiceActivo = -1;
+        var visibles = [];
+
+        var elBuscar = document.getElementById('buscar');
+        var elLista = document.getElementById('lista-productos');
+        var elLineas = document.getElementById('lineas');
+        var elVacio = document.getElementById('ticket-vacio');
+        var elTotal = document.getElementById('total');
+        var elConfirmar = document.getElementById('confirmar');
+        var elMedio = document.getElementById('medio_pago');
+        var elSenia = document.getElementById('senia');
+        var elSeniaValor = document.getElementById('senia-valor');
+        var elSaldo = document.getElementById('saldo');
+        var elForm = document.getElementById('encargo-form');
+
+        function dinero(n) { return '$' + n.toFixed(2); }
+
+        function el(tag, clase, texto) {
+            var e = document.createElement(tag);
+            if (clase) { e.className = clase; }
+            if (texto !== undefined) { e.textContent = texto; }
+            return e;
+        }
+
+        function filtrados() {
+            var texto = elBuscar.value.trim().toLowerCase();
+            return productos.filter(function (p) {
+                return !texto ||
+                    p.nombre.toLowerCase().indexOf(texto) !== -1 ||
+                    p.categoria.toLowerCase().indexOf(texto) !== -1;
+            });
+        }
+
+        function disponible(p) {
+            return p.stock > 0 && (cantidades[p.id] || 0) < p.stock;
+        }
+
+        function abierta() { return !elLista.classList.contains('d-none'); }
+
+        function abrir() {
+            elLista.classList.remove('d-none');
+            elBuscar.setAttribute('aria-expanded', 'true');
+            renderProductos();
+        }
+
+        function cerrar() {
+            elLista.classList.add('d-none');
+            elBuscar.setAttribute('aria-expanded', 'false');
+            indiceActivo = -1;
+        }
+
+        function marcarActivo() {
+            Array.prototype.forEach.call(elLista.children, function (li, i) {
+                li.classList.toggle('activo', i === indiceActivo);
+                if (i === indiceActivo) { li.scrollIntoView({ block: 'nearest' }); }
+            });
+        }
+
+        function elegir(p) {
+            if (!p || !disponible(p)) { return; }
+            agregar(p.id);
+            elBuscar.value = '';
+            cerrar();
+            elBuscar.focus();
+        }
+
+        function renderProductos() {
+            if (!abierta()) { return; }
+            var todos = filtrados();
+            visibles = todos.slice(0, MAX_RESULTADOS);
+            elLista.textContent = '';
+            if (!visibles.length) {
+                elLista.appendChild(el('li', 'p-3 text-muted', 'No hay productos que coincidan.'));
+                indiceActivo = -1;
+                return;
+            }
+            var primero = -1;
+            visibles.forEach(function (p, i) {
+                var ok = disponible(p);
+                if (ok && primero === -1) { primero = i; }
+                var li = el('li', 'combo-item' + (ok ? '' : ' agotado'));
+                li.setAttribute('role', 'option');
+
+                var izq = el('div');
+                izq.appendChild(el('div', 'combo-nombre', p.nombre));
+                izq.appendChild(el('small', 'text-muted', p.categoria));
+                li.appendChild(izq);
+
+                var der = el('div', 'combo-precio', dinero(parseFloat(p.precio)));
+                var enTicket = cantidades[p.id] || 0;
+                var nota;
+                if (p.stock <= 0) {
+                    nota = el('div', 'small text-danger fw-normal', 'Sin stock');
+                } else if (enTicket >= p.stock) {
+                    nota = el('div', 'small text-danger fw-normal', 'Todo el stock en el ticket');
+                } else if (p.stock <= UMBRAL_BAJO) {
+                    nota = el('div', 'small text-warning-emphasis fw-normal', 'Quedan ' + p.stock);
+                } else {
+                    nota = el('div', 'small text-muted fw-normal', 'Stock ' + p.stock);
+                }
+                der.appendChild(nota);
+                if (enTicket) {
+                    der.appendChild(el('div', 'small text-success fw-normal', 'En ticket: ' + enTicket));
+                }
+                li.appendChild(der);
+
+                li.addEventListener('mousedown', function (e) { e.preventDefault(); });
+                li.addEventListener('click', function () { elegir(p); });
+                elLista.appendChild(li);
+            });
+            if (todos.length > visibles.length) {
+                elLista.appendChild(el('li', 'px-3 py-2 small text-muted border-top', 'Mostrando ' + visibles.length + ' de ' + todos.length + '. Escribí para acotar la búsqueda.'));
+            }
+            indiceActivo = primero;
+            marcarActivo();
+        }
+
+        function mover(paso) {
+            if (!visibles.length) { return; }
+            var i = indiceActivo;
+            for (var n = 0; n < visibles.length; n++) {
+                i = (i + paso + visibles.length) % visibles.length;
+                if (disponible(visibles[i])) { indiceActivo = i; break; }
+            }
+            marcarActivo();
+        }
+
+        function renderLineas() {
+            elLineas.textContent = '';
+            orden.forEach(function (id) {
+                var p = porId[id];
+                var cant = cantidades[id];
+                var fila = el('div', 'linea');
+
+                var info = el('div', 'linea-nombre');
+                info.appendChild(el('div', 'fw-semibold', p.nombre));
+                info.appendChild(el('small', 'text-muted', dinero(parseFloat(p.precio)) + ' c/u'));
+                fila.appendChild(info);
+
+                var hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'producto';
+                hidden.value = id;
+                fila.appendChild(hidden);
+
+                var menos = el('button', 'btn btn-sm btn-outline-secondary', '−');
+                menos.type = 'button';
+                menos.addEventListener('click', function () { cambiar(id, -1); });
+                fila.appendChild(menos);
+
+                var campo = document.createElement('input');
+                campo.type = 'number';
+                campo.name = 'cantidad';
+                campo.min = 1;
+                campo.max = p.stock;
+                campo.value = cant;
+                campo.className = 'form-control form-control-sm cant';
+                campo.addEventListener('change', function () { fijar(id, campo.value); });
+                campo.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') { e.preventDefault(); fijar(id, campo.value); }
+                });
+                fila.appendChild(campo);
+
+                var mas = el('button', 'btn btn-sm btn-outline-secondary', '+');
+                mas.type = 'button';
+                mas.addEventListener('click', function () { cambiar(id, 1); });
+                fila.appendChild(mas);
+
+                fila.appendChild(el('div', 'linea-subtotal', dinero(parseFloat(p.precio) * cant)));
+
+                var quitarBtn = el('button', 'btn btn-sm btn-outline-danger', '×');
+                quitarBtn.type = 'button';
+                quitarBtn.title = 'Quitar';
+                quitarBtn.addEventListener('click', function () { quitar(id); });
+                fila.appendChild(quitarBtn);
+
+                elLineas.appendChild(fila);
+            });
+            elVacio.classList.toggle('d-none', orden.length > 0);
+        }
+
+        function totalActual() {
+            var total = 0;
+            orden.forEach(function (id) { total += parseFloat(porId[id].precio) * cantidades[id]; });
+            return total;
+        }
+
+        function actualizarCobro() {
+            var total = totalActual();
+            var senia = parseFloat(elSenia.value);
+            if (isNaN(senia) || senia < 0) { senia = 0; }
+            elTotal.textContent = dinero(total);
+            elSeniaValor.textContent = dinero(senia);
+            elSaldo.textContent = dinero(total - senia);
+            elSaldo.classList.toggle('text-danger', senia > total);
+            elMedio.required = senia > 0;
+            elConfirmar.disabled = orden.length === 0;
+        }
+
+        function actualizar() {
+            renderLineas();
+            renderProductos();
+            actualizarCobro();
+        }
+
+        function agregar(id) {
+            var p = porId[id];
+            if (!p) { return; }
+            var actual = cantidades[id] || 0;
+            if (actual >= p.stock) { return; }
+            if (!actual) { orden.push(id); }
+            cantidades[id] = actual + 1;
+            actualizar();
+        }
+
+        function quitar(id) {
+            delete cantidades[id];
+            orden = orden.filter(function (x) { return x !== id; });
+            actualizar();
+        }
+
+        function cambiar(id, delta) {
+            var nueva = (cantidades[id] || 0) + delta;
+            if (nueva <= 0) { quitar(id); return; }
+            fijar(id, nueva);
+        }
+
+        function fijar(id, valor) {
+            var p = porId[id];
+            var n = parseInt(valor, 10);
+            if (isNaN(n) || n < 1) { n = 1; }
+            if (n > p.stock) { n = p.stock; }
+            cantidades[id] = n;
+            actualizar();
+        }
+
+        elBuscar.addEventListener('click', abrir);
+        elBuscar.addEventListener('input', abrir);
+        elBuscar.addEventListener('keydown', function (e) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (!abierta()) { abrir(); } else { mover(1); }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (!abierta()) { abrir(); } else { mover(-1); }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (abierta() && indiceActivo >= 0) { elegir(visibles[indiceActivo]); }
+            } else if (e.key === 'Escape') {
+                cerrar();
+            }
+        });
+        document.addEventListener('click', function (e) {
+            if (e.target !== elBuscar && !elLista.contains(e.target)) { cerrar(); }
+        });
+        elSenia.addEventListener('input', actualizarCobro);
+        elMedio.addEventListener('change', actualizarCobro);
+        document.getElementById('vaciar').addEventListener('click', function () {
+            cantidades = {};
+            orden = [];
+            actualizar();
+        });
+        elForm.addEventListener('submit', function (e) {
+            if (!orden.length) { e.preventDefault(); return; }
+            elConfirmar.disabled = true;
+            elConfirmar.textContent = 'Guardando...';
+        });
+
+        iniciales.forEach(function (l) {
+            var id = parseInt(l.producto, 10);
+            var p = porId[id];
+            var n = parseInt(l.cantidad, 10);
+            if (!p || p.stock <= 0) { return; }
+            if (isNaN(n) || n < 1) { n = 1; }
+            if (!cantidades[id]) { orden.push(id); }
+            cantidades[id] = Math.min((cantidades[id] || 0) + n, p.stock);
+        });
+
+        actualizar();
+    })();
+    </script>
+</body>
+</html>

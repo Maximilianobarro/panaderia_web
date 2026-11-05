@@ -6,6 +6,7 @@ from . import generic_views as gv
 from . import views_auditoria as aud
 from . import views_hito2 as h2
 from . import views_hito3 as h3
+from . import views_encargos as enc
 
 urlpatterns = [
     path('', RedirectView.as_view(url='/inicio/', permanent=False)),
@@ -78,15 +79,12 @@ urlpatterns = [
     # ---------- AUDITORIA (Hito Nº4) ----------
     path('auditoria/', aud.auditoria_lista, name='auditoria_lista'),
 
-    # ---------- ENCARGO ----------
-    path('encargos/', gv.EncargoListView.as_view(), name='encargo_lista'),
-    path('encargos/nuevo/', gv.EncargoCreateView.as_view(), name='encargo_crear'),
-    path('encargos/<int:pk>/editar/', gv.EncargoUpdateView.as_view(), name='encargo_editar'),
-    path('encargos/<int:pk>/borrar/', gv.EncargoDeleteView.as_view(), name='encargo_borrar'),
-
-    # ---------- DETALLE ENCARGO ----------
-    path('detalle-encargos/', gv.DetalleEncargoListView.as_view(), name='detalle_encargo_lista'),
-    path('detalle-encargos/nuevo/', gv.DetalleEncargoCreateView.as_view(), name='detalle_encargo_crear'),
-    path('detalle-encargos/<int:pk>/editar/', gv.DetalleEncargoUpdateView.as_view(), name='detalle_encargo_editar'),
-    path('detalle-encargos/<int:pk>/borrar/', gv.DetalleEncargoDeleteView.as_view(), name='detalle_encargo_borrar'),
+    # ---------- ENCARGO (Hito Nº4) ----------
+    path('encargos/', enc.encargo_lista, name='encargo_lista'),
+    path('encargos/nuevo/', enc.encargo_crear, name='encargo_crear'),
+    path('encargos/<int:pk>/', enc.encargo_detalle, name='encargo_detalle'),
+    path('encargos/<int:pk>/entregar/', enc.encargo_entregar, name='encargo_entregar'),
+    path('encargos/<int:pk>/cancelar/', enc.encargo_cancelar, name='encargo_cancelar'),
+    path('encargos/<int:pk>/comprobante/', enc.encargo_comprobante, name='encargo_comprobante'),
+    path('detalle-encargos/', enc.produccion_lista, name='detalle_encargo_lista'),
 ]

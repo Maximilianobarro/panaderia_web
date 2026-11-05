@@ -7,11 +7,12 @@ PERMISOS = [
     ('registrar_venta', 'Registrar nuevas ventas'),
     ('emitir_comprobante', 'Emitir el comprobante de una venta'),
     ('ver_auditoria', 'Consultar el registro de auditoría'),
+    ('cancelar_encargo', 'Cancelar encargos pendientes'),
 ]
 
 
 class Command(BaseCommand):
-    help = 'Crea los permisos del proceso de ventas si no existen.'
+    help = 'Crea los permisos de ventas, encargos y auditoría si no existen.'
 
     def handle(self, *args, **options):
         for nombre, descripcion in PERMISOS:

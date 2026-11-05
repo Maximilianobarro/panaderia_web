@@ -1,0 +1,1 @@
+{% if estado == 'Pendiente' %}<span class="badge text-bg-warning">Pendiente</span>{% elif estado == 'Entregado' %}<span class="badge text-bg-success">Entregado</span>{% elif estado == 'Cancelado' %}<span class="badge text-bg-danger">Cancelado</span>{% else %}<span class="badge text-bg-secondary">{{ estado|default_if_none:"-" }}</span>{% endif %}

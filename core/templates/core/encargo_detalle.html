@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Encargo {{ encargo.numero_comprobante }} - Panadería Zulca</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    {% include 'core/_menu.html' %}
+    <div class="container mb-5">
+        <h1 class="mb-4">
+            Encargo {{ encargo.numero_comprobante }}
+            <span class="fs-6">{% include 'core/_estado_encargo.html' with estado=encargo.estado %}</span>
+        </h1>
+
+        <div class="bg-white p-3 rounded mb-3">
+            <div class="row">
+                <div class="col-md-4"><strong>Pedido:</strong> {{ encargo.fecha_pedido|date:"d/m/Y"|default:"-" }}</div>
+                <div class="col-md-4"><strong>Entrega prevista:</strong> {{ encargo.fecha_entrega_prevista|date:"d/m/Y"|default:"-" }}</div>
+                <div class="col-md-4"><strong>Cliente:</strong> {{ encargo.cliente }}</div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-md-4"><strong>Registró:</strong> {{ encargo.usuario.nombre_usuario }}</div>
+                <div class="col-md-4"><strong>Medio de pago de la seña:</strong> {{ encargo.medio_pago|default:"-" }}</div>
+                <div class="col-md-4"><strong>Observación:</strong> {{ encargo.observacion|default:"-" }}</div>
+            </div>
+            {% if encargo.fecha_entrega_real %}
+            <div class="row mt-2">
+                <div class="col-md-12"><strong>Entregado:</strong> {{ encargo.fecha_entrega_real|date:"d/m/Y H:i" }}</div>
+            </div>
+            {% endif %}
+            {% if encargo.fecha_anulacion %}
+            <div class="alert alert-danger mt-3 mb-0">
+                <strong>Cancelado el</strong> {{ encargo.fecha_anulacion|date:"d/m/Y H:i" }}
+                por {{ encargo.usuario_anulacion.nombre_usuario|default:"-" }}.
+                <strong>Motivo:</strong> {{ encargo.motivo_anulacion|default:"-" }}
+            </div>
+            {% endif %}
+        </div>
+
+        <table class="table table-bordered table-striped bg-white">
+            <thead class="table-dark">
+                <tr>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Precio unitario</th>
+                    <th>Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in detalles %}
+                <tr>
+                    <td>{{ d.producto.nombre }}</td>
+                    <td>{{ d.cantidad }}</td>
+                    <td>${{ d.precio_unitario|floatformat:2 }}</td>
+                    <td>${{ d.subtotal|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center">Este encargo no tiene ítems cargados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="3" class="text-end">Total</th>
+                    <th>${{ encargo.total|floatformat:2 }}</th>
+                </tr>
+                <tr>
+                    <th colspan="3" class="text-end">Seña</th>
+                    <th>${{ encargo.senia|default_if_none:0|floatformat:2 }}</th>
+                </tr>
+                <tr>
+                    <th colspan="3" class="text-end">Saldo a cobrar</th>
+                    <th>${{ encargo.saldo|floatformat:2 }}</th>
+                </tr>
+            </tfoot>
+        </table>
+
+        <a href="{% url 'encargo_lista' %}" class="btn btn-secondary">Volver</a>
+        {% if es_admin or 'registrar_venta' in permisos_usuario %}
+        <a href="{% url 'encargo_crear' %}" class="btn btn-success">+ Nuevo encargo</a>
+        {% endif %}
+        {% if es_admin or 'emitir_comprobante' in permisos_usuario %}
+        <a href="{% url 'encargo_comprobante' encargo.pk %}" class="btn btn-primary" target="_blank">Comprobante</a>
+        {% endif %}
+
+        {% if pendiente %}
+        {% if es_admin or 'registrar_venta' in permisos_usuario %}
+        <form method="post" action="{% url 'encargo_entregar' encargo.pk %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-warning">Marcar como entregado</button>
+        </form>
+        {% endif %}
+
+        {% if es_admin or 'cancelar_encargo' in permisos_usuario %}
+        <form method="post" action="{% url 'encargo_cancelar' encargo.pk %}" class="bg-white p-3 rounded mt-4">
+            {% csrf_token %}
+            <h5>Cancelar encargo</h5>
+            <p class="text-muted small">Se repone el stock de los productos. Esta acción no se puede deshacer.</p>
+            <label class="form-label" for="motivo">Motivo (obligatorio)</label>
+            <input type="text" id="motivo" name="motivo" maxlength="200" class="form-control mb-2" required>
+            <button type="submit" class="btn btn-danger">Cancelar encargo</button>
+        </form>
+        {% endif %}
+        {% endif %}
+    </div>
+</body>
+</html>

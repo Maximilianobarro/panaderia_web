@@ -10,7 +10,9 @@
     <div class="container mb-5">
         <h1 class="mb-4">{% if titulo == 'Permiso' %}Permisos{% else %}{{ titulo }}{% endif %}</h1>
 
+        {% if es_admin or not permiso_editar or permiso_editar in permisos_usuario %}
         <a href="{% url crear_url %}" class="btn btn-success mb-3">+ Nuevo</a>
+        {% endif %}
 
         <table class="table table-bordered table-striped bg-white">
             <thead class="table-dark">
@@ -18,18 +20,23 @@
                     <th>#</th>
                     <th>Datos</th>
                     {% if titulo == 'Producto' %}
+                    <th>Categoría</th>
                     <th>Precio c/u</th>
                     <th>Stock</th>
+                    <th>Estado</th>
                     {% endif %}
+                    {% if es_admin or not permiso_editar or permiso_modificar in permisos_usuario or permiso_borrar in permisos_usuario %}
                     <th>Acciones</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
                 {% for objeto in objetos %}
-                <tr>
+                <tr class="{% if titulo == 'Producto' and objeto.estado|lower != 'activo' %}table-secondary text-muted{% endif %}">
                     <td>{{ objeto.pk }}</td>
                     <td>{{ objeto }}</td>
                     {% if titulo == 'Producto' %}
+                    <td>{{ objeto.categoria.nombre }}</td>
                     <td>${{ objeto.precio_unitario|floatformat:2 }}</td>
                     <td>
                         {% if objeto.stock_actual is None %}
@@ -40,15 +47,28 @@
                             <span class="badge text-bg-success">{{ objeto.stock_actual }}</span>
                         {% endif %}
                     </td>
-                    {% endif %}
                     <td>
-                        <a href="{% url editar_url objeto.pk %}" class="btn btn-sm btn-primary">Editar</a>
-                        <a href="{% url borrar_url objeto.pk %}" class="btn btn-sm btn-danger">Borrar</a>
+                        {% if objeto.estado|lower == 'activo' %}
+                            <span class="badge text-bg-success">Activo</span>
+                        {% else %}
+                            <span class="badge text-bg-secondary">Inactivo</span>
+                        {% endif %}
                     </td>
+                    {% endif %}
+                    {% if es_admin or not permiso_editar or permiso_modificar in permisos_usuario or permiso_borrar in permisos_usuario %}
+                    <td>
+                        {% if es_admin or not permiso_modificar or permiso_modificar in permisos_usuario %}
+                        <a href="{% url editar_url objeto.pk %}" class="btn btn-sm btn-primary">Editar</a>
+                        {% endif %}
+                        {% if es_admin or not permiso_borrar or permiso_borrar in permisos_usuario %}
+                        <a href="{% url borrar_url objeto.pk %}" class="btn btn-sm btn-danger">Borrar</a>
+                        {% endif %}
+                    </td>
+                    {% endif %}
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="{% if titulo == 'Producto' %}5{% else %}3{% endif %}" class="text-center">No hay registros todavía.</td>
+                    <td colspan="{% if titulo == 'Producto' %}{% if es_admin or not permiso_editar or permiso_modificar in permisos_usuario or permiso_borrar in permisos_usuario %}7{% else %}6{% endif %}{% else %}{% if es_admin or not permiso_editar or permiso_modificar in permisos_usuario or permiso_borrar in permisos_usuario %}3{% else %}2{% endif %}{% endif %}" class="text-center">No hay registros todavía.</td>
                 </tr>
                 {% endfor %}
             </tbody>

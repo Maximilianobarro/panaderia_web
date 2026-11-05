@@ -119,9 +119,9 @@ def _antes_de_borrar(sender, instance, **kwargs):
 
 
 def conectar():
-    from .models import Categoria, Cliente, Permiso, Producto, Rol, Usuario
+    from .models import Categoria, Cliente, Encargo, Permiso, Producto, Rol, Usuario
 
-    for modelo in (Producto, Cliente, Usuario, Categoria, Rol, Permiso):
+    for modelo in (Producto, Cliente, Usuario, Categoria, Rol, Permiso, Encargo):
         pre_save.connect(_antes_de_guardar, sender=modelo, dispatch_uid=f'aud_pre_{modelo.__name__}')
         post_save.connect(_despues_de_guardar, sender=modelo, dispatch_uid=f'aud_post_{modelo.__name__}')
         pre_delete.connect(_antes_de_borrar, sender=modelo, dispatch_uid=f'aud_del_{modelo.__name__}')
