@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -58,8 +59,8 @@ DATABASES = {
         'NAME': 'panaderia',       
         'USER': 'root',
         'PASSWORD': 'root',   
-        'HOST': 'localhost',
-        'PORT': '3307',
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '3307'),
     }
 }
 
