@@ -59,8 +59,7 @@
         </form>
 
         <p class="text-white">
-            {{ total }} registro{{ total|pluralize }}.
-            {% if total > max_filas %}Se muestran los {{ max_filas }} más recientes; usá los filtros para acotar.{% endif %}
+            {{ pagina.paginator.count }} registro{{ pagina.paginator.count|pluralize }}.
         </p>
 
         <table class="table table-bordered table-striped bg-white align-middle">
@@ -69,6 +68,7 @@
                     <th>Fecha y hora</th>
                     <th>Usuario</th>
                     <th>Entidad</th>
+                    <th>Registro afectado</th>
                     <th>N° registro</th>
                     <th>Acción</th>
                     <th>Valores anteriores</th>
@@ -81,6 +81,7 @@
                     <td class="text-nowrap">{{ f.fecha_hora|date:"d/m/Y H:i:s" }}</td>
                     <td>{{ f.usuario.nombre_usuario|default:"-" }}</td>
                     <td>{{ f.entidad }}</td>
+                    <td>{{ f.afectado }}</td>
                     <td>{{ f.id_registro }}</td>
                     <td>
                         {% if f.accion == 'ANULACION' %}
@@ -100,11 +101,33 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center">No hay registros para los filtros elegidos.</td>
+                    <td colspan="8" class="text-center">No hay registros para los filtros elegidos.</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+
+        {% if pagina.paginator.num_pages > 1 %}
+        <nav aria-label="Páginas">
+            <ul class="pagination flex-wrap">
+                {% if pagina.has_previous %}
+                <li class="page-item"><a class="page-link" href="?{% if parametros %}{{ parametros }}&{% endif %}page={{ pagina.previous_page_number }}">Anterior</a></li>
+                {% endif %}
+                {% for n in paginas %}
+                    {% if n == pagina.number %}
+                    <li class="page-item active"><span class="page-link">{{ n }}</span></li>
+                    {% elif n == pagina.paginator.ELLIPSIS %}
+                    <li class="page-item disabled"><span class="page-link">{{ n }}</span></li>
+                    {% else %}
+                    <li class="page-item"><a class="page-link" href="?{% if parametros %}{{ parametros }}&{% endif %}page={{ n }}">{{ n }}</a></li>
+                    {% endif %}
+                {% endfor %}
+                {% if pagina.has_next %}
+                <li class="page-item"><a class="page-link" href="?{% if parametros %}{{ parametros }}&{% endif %}page={{ pagina.next_page_number }}">Siguiente</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
 
         <a href="{% url 'dashboard' %}" class="btn btn-secondary">Volver</a>
     </div>

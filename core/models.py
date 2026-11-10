@@ -5,6 +5,7 @@ class Permiso(models.Model):
     id_permiso = models.AutoField(primary_key=True)
     nombre_permiso = models.CharField(max_length=50)
     descripcion = models.CharField(max_length=150, blank=True, null=True)
+    activo = models.BooleanField(default=True)
 
     class Meta:
         db_table = 'permiso'
@@ -18,6 +19,7 @@ class Rol(models.Model):
     nombre_rol = models.CharField(max_length=50)
     descripcion = models.CharField(max_length=150, blank=True, null=True)
     permisos = models.ManyToManyField(Permiso, through='RolPermiso', related_name='roles')
+    activo = models.BooleanField(default=True)
 
     class Meta:
         db_table = 'rol'
@@ -39,6 +41,7 @@ class Categoria(models.Model):
     id_categoria = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=50)
     descripcion = models.CharField(max_length=150, blank=True, null=True)
+    activo = models.BooleanField(default=True)
 
     class Meta:
         db_table = 'categoria'
@@ -102,6 +105,10 @@ class Producto(models.Model):
 
     def __str__(self):
         return self.nombre
+
+    @property
+    def activo(self):
+        return (self.estado or '').lower() == 'activo'
 
 
 class Venta(models.Model):
@@ -197,10 +204,14 @@ class DetalleEncargo(models.Model):
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    preparado = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'detalle_encargo'
         unique_together = (('producto', 'encargo'),)
+
+    def __str__(self):
+        return f'{self.encargo.numero_comprobante} - {self.producto}'
 
 
 class LogAuditoria(models.Model):

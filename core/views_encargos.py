@@ -2,8 +2,9 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Count, Sum
+from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
@@ -233,7 +234,10 @@ def encargo_lista(request):
 
     encargos = list(
         encargos.select_related('cliente', 'usuario')
-        .annotate(cant_items=Sum('detalleencargo__cantidad'))
+        .annotate(
+            cant_items=Sum('detalleencargo__cantidad'),
+            sin_preparar=Count('detalleencargo', filter=Q(detalleencargo__preparado=False)),
+        )
         .order_by('-id_encargo')
     )
 
@@ -425,3 +429,17 @@ def produccion_lista(request):
             'producto': producto_id,
         },
     })
+
+
+@permiso_requerido(PERMISO_REGISTRAR)
+@require_http_methods(['POST'])
+def encargo_item_preparado(request, pk):
+    with transaction.atomic():
+        item = get_object_or_404(DetalleEncargo.objects.select_for_update().select_related('encargo'), pk=pk)
+        if item.encargo.estado == Encargo.ESTADO_PENDIENTE:
+            item.preparado = request.POST.get('preparado') == '1'
+            item.save(update_fields=['preparado'])
+    volver = request.POST.get('volver', '')
+    if not volver.startswith(reverse('detalle_encargo_lista')):
+        volver = reverse('detalle_encargo_lista')
+    return redirect(volver)

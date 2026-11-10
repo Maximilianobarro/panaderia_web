@@ -235,7 +235,7 @@
         }
 
         async function borrarCliente(id) {
-            if (!confirm('¿Dar de baja a este cliente? Sus ventas se conservan.')) return;
+            if (!confirm('¿Estás seguro de esta acción?')) return;
             try {
                 const resp = await fetch(`${API_BASE}${id}/borrar/`, { method: 'DELETE' });
                 if (!resp.ok) throw new Error('No se pudo dar de baja');

@@ -109,7 +109,10 @@
                     <td>${{ e.total|floatformat:2 }}</td>
                     <td>{% if e.senia is None %}-{% else %}${{ e.senia|floatformat:2 }}{% endif %}</td>
                     <td>{{ e.medio_pago|default:"-" }}</td>
-                    <td>{% include 'core/_estado_encargo.html' with estado=e.estado %}</td>
+                    <td>
+                        {% include 'core/_estado_encargo.html' with estado=e.estado %}
+                        {% if e.estado == 'Pendiente' and e.cant_items and e.sin_preparar == 0 %}<span class="badge text-bg-info">Listo para entregar</span>{% endif %}
+                    </td>
                     <td>
                         <a href="{% url 'encargo_detalle' e.pk %}" class="btn btn-sm btn-primary">Ver</a>
                         {% if es_admin or 'emitir_comprobante' in permisos_usuario %}

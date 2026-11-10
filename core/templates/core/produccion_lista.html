@@ -117,6 +117,7 @@
                     <th>Producto</th>
                     <th class="text-end">Cantidad</th>
                     <th>Estado</th>
+                    <th>Preparado</th>
                 </tr>
             </thead>
             <tbody>
@@ -128,10 +129,27 @@
                     <td>{{ d.producto.nombre }}</td>
                     <td class="text-end">{{ d.cantidad }}</td>
                     <td>{% include 'core/_estado_encargo.html' with estado=d.encargo.estado %}</td>
+                    <td>
+                        {% if d.encargo.estado == 'Pendiente' and es_admin or d.encargo.estado == 'Pendiente' and 'registrar_venta' in permisos_usuario %}
+                        <form method="post" action="{% url 'encargo_item_preparado' d.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="volver" value="{{ request.get_full_path }}">
+                            {% if d.preparado %}
+                            <button type="submit" name="preparado" value="0" class="btn btn-sm btn-success">✓ Preparado</button>
+                            {% else %}
+                            <button type="submit" name="preparado" value="1" class="btn btn-sm btn-outline-secondary">Marcar preparado</button>
+                            {% endif %}
+                        </form>
+                        {% elif d.preparado %}
+                        <span class="badge text-bg-success">Sí</span>
+                        {% else %}
+                        <span class="badge text-bg-secondary">No</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-center">No hay ítems para los filtros elegidos.</td>
+                    <td colspan="7" class="text-center">No hay ítems para los filtros elegidos.</td>
                 </tr>
                 {% endfor %}
             </tbody>

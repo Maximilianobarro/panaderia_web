@@ -29,7 +29,7 @@ urlpatterns = [
     path('productos/', gv.ProductoListView.as_view(), name='producto_lista'),
     path('productos/nuevo/', gv.ProductoCreateView.as_view(), name='producto_crear'),
     path('productos/<int:pk>/editar/', gv.ProductoUpdateView.as_view(), name='producto_editar'),
-    path('productos/<int:pk>/borrar/', gv.ProductoDeleteView.as_view(), name='producto_borrar'),
+    path('productos/<int:pk>/estado/', gv.ProductoEstadoView.as_view(), name='producto_estado'),
     path('productos-ajax/', views.index_view, name='index'),
     path('api/productos/', views.api_productos, name='api_productos'),
     path('api/productos/crear/', views.api_crear_producto, name='api_crear_producto'),
@@ -41,13 +41,13 @@ urlpatterns = [
     path('roles/', gv.RolListView.as_view(), name='rol_lista'),
     path('roles/nuevo/', gv.RolCreateView.as_view(), name='rol_crear'),
     path('roles/<int:pk>/editar/', gv.RolUpdateView.as_view(), name='rol_editar'),
-    path('roles/<int:pk>/borrar/', gv.RolDeleteView.as_view(), name='rol_borrar'),
+    path('roles/<int:pk>/estado/', gv.RolEstadoView.as_view(), name='rol_estado'),
 
     # ---------- CATEGORIA ----------
     path('categorias/', gv.CategoriaListView.as_view(), name='categoria_lista'),
     path('categorias/nueva/', gv.CategoriaCreateView.as_view(), name='categoria_crear'),
     path('categorias/<int:pk>/editar/', gv.CategoriaUpdateView.as_view(), name='categoria_editar'),
-    path('categorias/<int:pk>/borrar/', gv.CategoriaDeleteView.as_view(), name='categoria_borrar'),
+    path('categorias/<int:pk>/estado/', gv.CategoriaEstadoView.as_view(), name='categoria_estado'),
 
     # ---------- USUARIO (Hito Nº2: Alta / Modificación / Baja / Restablecer clave) ----------
     path('usuarios/', h2.usuario_lista, name='usuario_lista'),
@@ -68,7 +68,7 @@ urlpatterns = [
     path('permisos/', gv.PermisoListView.as_view(), name='permiso_lista'),
     path('permisos/nuevo/', gv.PermisoCreateView.as_view(), name='permiso_crear'),
     path('permisos/<int:pk>/editar/', gv.PermisoUpdateView.as_view(), name='permiso_editar'),
-    path('permisos/<int:pk>/borrar/', gv.PermisoDeleteView.as_view(), name='permiso_borrar'),
+    path('permisos/<int:pk>/estado/', gv.PermisoEstadoView.as_view(), name='permiso_estado'),
 
     # ---------- VENTA (Hito Nº3: sin anulación) ----------
     path('ventas/', h3.venta_lista, name='venta_lista'),
@@ -87,4 +87,5 @@ urlpatterns = [
     path('encargos/<int:pk>/cancelar/', enc.encargo_cancelar, name='encargo_cancelar'),
     path('encargos/<int:pk>/comprobante/', enc.encargo_comprobante, name='encargo_comprobante'),
     path('detalle-encargos/', enc.produccion_lista, name='detalle_encargo_lista'),
+    path('detalle-encargos/<int:pk>/preparado/', enc.encargo_item_preparado, name='encargo_item_preparado'),
 ]

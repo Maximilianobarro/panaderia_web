@@ -1,7 +1,9 @@
 from django.db.models import Case, IntegerField, When
 from django.urls import reverse_lazy
 from .auth_utils import PermisoRequeridoMixin
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.shortcuts import get_object_or_404, redirect
+from django.views import View
+from django.views.generic import ListView, CreateView, UpdateView
 from .models import (
     Rol, Categoria,
     Permiso, Producto,
@@ -30,7 +32,7 @@ def crud_views(model, form_class, nombre_url, titulo, permiso_ver=None, permiso_
         'permiso_borrar': permiso_borrar,
         'permiso_modificar': permiso_modificar,
         'editar_url': f'{nombre_url}_editar',
-        'borrar_url': f'{nombre_url}_borrar',
+        'estado_url': f'{nombre_url}_estado',
     }
 
     class CreateV(PermisoRequeridoMixin, CreateView):
@@ -51,34 +53,45 @@ def crud_views(model, form_class, nombre_url, titulo, permiso_ver=None, permiso_
     UpdateV.permiso_necesario = permiso_modificar
     UpdateV.extra_context = {'titulo': titulo, 'volver_url': lista_url}
 
-    class DeleteV(PermisoRequeridoMixin, DeleteView):
-        pass
-    DeleteV.model = model
-    DeleteV.template_name = 'core/generic_confirm_delete.html'
-    DeleteV.success_url = reverse_lazy(lista_url)
-    DeleteV.permiso_necesario = permiso_borrar
-    DeleteV.extra_context = {'volver_url': lista_url}
+    class EstadoV(PermisoRequeridoMixin, View):
+        http_method_names = ['post']
 
-    return ListV, CreateV, UpdateV, DeleteV
+        def post(self, request, pk):
+            objeto = get_object_or_404(model, pk=pk)
+            activar = request.POST.get('accion') == 'alta'
+            if model is Producto:
+                objeto.estado = 'activo' if activar else 'inactivo'
+                objeto.save(update_fields=['estado'])
+            else:
+                objeto.activo = activar
+                objeto.save(update_fields=['activo'])
+            return redirect(lista_url)
+    EstadoV.permiso_necesario = permiso_borrar
+
+    return ListV, CreateV, UpdateV, EstadoV
 
 
-RolListView, RolCreateView, RolUpdateView, RolDeleteView = crud_views(
+RolListView, RolCreateView, RolUpdateView, RolEstadoView = crud_views(
     Rol, RolForm, 'rol', 'Rol',
     permiso_ver='gestionar_roles', permiso_editar='gestionar_roles'
 )
-PermisoListView, PermisoCreateView, PermisoUpdateView, PermisoDeleteView = crud_views(
+PermisoListView, PermisoCreateView, PermisoUpdateView, PermisoEstadoView = crud_views(
     Permiso, PermisoForm, 'permiso', 'Permiso',
     permiso_ver='gestionar_roles', permiso_editar='gestionar_roles'
 )
-CategoriaListView, CategoriaCreateView, CategoriaUpdateView, CategoriaDeleteView = crud_views(
+CategoriaListView, CategoriaCreateView, CategoriaUpdateView, CategoriaEstadoView = crud_views(
     Categoria, CategoriaForm, 'categoria', 'Categoría',
     permiso_ver='ver_categorias', permiso_editar='gestionar_roles'
 )
-ProductoListView, ProductoCreateView, ProductoUpdateView, ProductoDeleteView = crud_views(
+ProductoListView, ProductoCreateView, ProductoUpdateView, ProductoEstadoView = crud_views(
     Producto, ProductoForm, 'producto', 'Producto',
     permiso_ver='ver_productos', permiso_editar='editar_stock',
-    permiso_borrar='eliminar_producto', permiso_modificar='editar_producto'
+    permiso_borrar='dar_baja_alta', permiso_modificar='editar_producto'
 )
 ProductoListView.queryset = Producto.objects.select_related('categoria').annotate(
     orden_estado=Case(When(estado__iexact='activo', then=0), default=1, output_field=IntegerField())
 ).order_by('orden_estado', 'id_producto')
+
+RolListView.queryset = Rol.objects.order_by('-activo', 'id_rol')
+PermisoListView.queryset = Permiso.objects.order_by('-activo', 'id_permiso')
+CategoriaListView.queryset = Categoria.objects.order_by('-activo', 'id_categoria')

@@ -35,6 +35,31 @@ def _cliente_repetido(datos, excluir_pk=None):
     return repetidos.first()
 
 
+def _email_repetido(datos, excluir_pk=None):
+    if not datos['email']:
+        return None
+    repetidos = Cliente.objects.filter(email__iexact=datos['email'])
+    if excluir_pk is not None:
+        repetidos = repetidos.exclude(pk=excluir_pk)
+    return repetidos.first()
+
+
+def _error_email(repetido):
+    if repetido.activo:
+        return f'El email ya está registrado para el cliente {repetido}.'
+    return f'El email ya está registrado para el cliente {repetido}, que está dado de baja. Reactivalo desde la lista con "Dar de alta".'
+
+
+def _error_cliente(datos, excluir_pk=None):
+    repetido = _email_repetido(datos, excluir_pk)
+    if repetido:
+        return _error_email(repetido)
+    repetido = _cliente_repetido(datos, excluir_pk)
+    if repetido:
+        return _error_repetido(repetido)
+    return None
+
+
 def _error_repetido(repetido):
     if repetido.activo:
         return 'Ya existe un cliente con ese nombre, apellido y email.'
@@ -47,10 +72,8 @@ def crear_cliente(request):
     error = None
     if request.method == 'POST':
         datos = _datos_cliente(request.POST)
-        repetido = _cliente_repetido(datos)
-        if repetido:
-            error = _error_repetido(repetido)
-        else:
+        error = _error_cliente(datos)
+        if not error:
             Cliente.objects.create(**datos)
             return redirect('lista_clientes')
     return render(request, 'core/cliente_form.html', {'datos': datos, 'error': error})
@@ -63,10 +86,8 @@ def editar_cliente(request, pk):
     error = None
     if request.method == 'POST':
         datos = _datos_cliente(request.POST)
-        repetido = _cliente_repetido(datos, excluir_pk=cliente.pk)
-        if repetido:
-            error = _error_repetido(repetido)
-        else:
+        error = _error_cliente(datos, excluir_pk=cliente.pk)
+        if not error:
             for campo, valor in datos.items():
                 setattr(cliente, campo, valor)
             cliente.save()
@@ -206,5 +227,6 @@ def api_borrar_producto(request, pk):
     except Producto.DoesNotExist:
         return JsonResponse({'error': 'Producto no encontrado'}, status=404)
 
-    producto.delete()
-    return JsonResponse({'mensaje': 'Producto eliminado correctamente'})
+    producto.estado = 'inactivo'
+    producto.save(update_fields=['estado'])
+    return JsonResponse({'mensaje': 'Producto dado de baja correctamente'})

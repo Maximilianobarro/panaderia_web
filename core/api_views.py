@@ -22,7 +22,7 @@ def cliente_a_dict(cliente):
 @permiso_requerido('ver_clientes')
 @require_http_methods(["GET"])
 def api_lista_clientes(request):
-    clientes = Cliente.objects.all().order_by('id_cliente')
+    clientes = Cliente.objects.filter(activo=True).order_by('id_cliente')
     data = [cliente_a_dict(c) for c in clientes]
     return JsonResponse(data, safe=False)
 
@@ -83,5 +83,8 @@ def api_borrar_cliente(request, pk):
     except Cliente.DoesNotExist:
         return JsonResponse({'error': 'Cliente no encontrado'}, status=404)
 
-    cliente.delete()
-    return JsonResponse({'mensaje': 'Cliente eliminado correctamente'})
+    if cliente.nombre.lower() == 'consumidor' and cliente.apellido.lower() == 'final':
+        return JsonResponse({'error': 'El cliente "Consumidor Final" no se puede dar de baja.'}, status=400)
+    cliente.activo = False
+    cliente.save(update_fields=['activo'])
+    return JsonResponse({'mensaje': 'Cliente dado de baja correctamente'})
