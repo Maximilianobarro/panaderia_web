@@ -14,6 +14,13 @@
         {% if es_admin or 'registrar_venta' in permisos_usuario %}
         <a href="{% url 'venta_crear' %}" class="btn btn-success mb-3">+ Nueva venta</a>
         {% endif %}
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary mb-3">Volver</a>
+        {% if not es_admin and 'cierre_caja' in permisos_usuario %}
+        <a href="{% url 'caja_cerrar' %}" class="btn btn-warning mb-3">Cierre de caja</a>
+        {% endif %}
+        {% if es_admin or 'cierre_caja' in permisos_usuario %}
+        <a href="{% url 'caja_lista' %}" class="btn btn-light mb-3">Cierres de caja</a>
+        {% endif %}
 
         {% for e in errores %}
         <div class="alert alert-danger">{{ e }}</div>

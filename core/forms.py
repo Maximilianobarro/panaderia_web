@@ -1,7 +1,7 @@
 from django import forms
 from .models import (
     Rol, Categoria,
-    Permiso, Producto,
+    Permiso, Producto, Insumo,
 )
 
 
@@ -39,3 +39,39 @@ class ProductoForm(forms.ModelForm):
         model = Producto
         fields = ['nombre', 'descripcion', 'precio_unitario',
                   'stock_actual', 'estado', 'categoria']
+
+
+class InsumoForm(forms.ModelForm):
+    unidad = forms.ChoiceField(choices=[(u, u) for u in Insumo.UNIDADES])
+    stock_minimo = forms.DecimalField(
+        label='Stock mínimo', min_value=1, max_digits=12, decimal_places=3, initial=0,
+        widget=forms.NumberInput(attrs={'min': '1', 'step': '0.001'}),
+        error_messages={
+            'required': 'Indicá el stock mínimo.',
+            'min_value': 'El stock mínimo debe ser 1 o más.',
+        },
+    )
+    productos = forms.ModelMultipleChoiceField(
+        queryset=Producto.objects.filter(estado__iexact='activo').order_by('nombre'),
+        widget=forms.CheckboxSelectMultiple,
+        label='Productos que lo usan',
+        error_messages={'required': 'Marcá al menos un producto que use este insumo.'},
+    )
+
+    class Meta:
+        model = Insumo
+        fields = ['nombre', 'unidad', 'stock_minimo', 'productos']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.initial['stock_minimo'] = format(self.instance.stock_minimo.normalize(), 'f')
+
+    def clean_nombre(self):
+        nombre = self.cleaned_data['nombre'].strip()
+        repetidos = Insumo.objects.filter(nombre__iexact=nombre)
+        if self.instance.pk:
+            repetidos = repetidos.exclude(pk=self.instance.pk)
+        if repetidos.exists():
+            raise forms.ValidationError('Ya existe un insumo con ese nombre.')
+        return nombre

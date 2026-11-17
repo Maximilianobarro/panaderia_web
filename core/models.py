@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 
 
@@ -167,6 +169,17 @@ class Encargo(models.Model):
         blank=True,
         null=True,
     )
+    fecha_hora_registro = models.DateTimeField(blank=True, null=True)
+    fecha_pago_saldo = models.DateTimeField(blank=True, null=True)
+    medio_pago_saldo = models.CharField(max_length=30, blank=True, null=True)
+    usuario_pago_saldo = models.ForeignKey(
+        Usuario,
+        on_delete=models.DO_NOTHING,
+        db_column='usuario_pago_saldo_id_usuario',
+        related_name='saldos_cobrados',
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         db_table = 'encargo'
@@ -181,6 +194,10 @@ class Encargo(models.Model):
     @property
     def saldo(self):
         return self.total - (self.senia or 0)
+
+    @property
+    def saldo_pagado(self):
+        return self.fecha_pago_saldo is not None or self.saldo <= 0
 
 
 class DetalleVenta(models.Model):
@@ -232,3 +249,101 @@ class LogAuditoria(models.Model):
 
     def __str__(self):
         return f"{self.accion} {self.entidad} #{self.id_registro}"
+
+
+class Insumo(models.Model):
+    UNIDADES = ['kg', 'g', 'l', 'ml', 'unidades']
+    MARGEN_CERCA = Decimal('1.25')
+
+    id_insumo = models.AutoField(primary_key=True)
+    nombre = models.CharField(max_length=80)
+    unidad = models.CharField(max_length=20)
+    stock_actual = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+    stock_minimo = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+    activo = models.BooleanField(default=True)
+    productos = models.ManyToManyField(Producto, blank=True, related_name='insumos', db_table='insumo_producto')
+
+    class Meta:
+        db_table = 'insumo'
+
+    def __str__(self):
+        return self.nombre
+
+    @property
+    def nivel(self):
+        if self.stock_actual <= 0:
+            return 'sin'
+        if self.stock_minimo > 0 and self.stock_actual <= self.stock_minimo:
+            return 'bajo'
+        if self.stock_minimo > 0 and self.stock_actual <= self.stock_minimo * self.MARGEN_CERCA:
+            return 'cerca'
+        return 'ok'
+
+
+class MovimientoInsumo(models.Model):
+    TIPO_ENTRADA = 'Entrada'
+    TIPO_SALIDA = 'Salida'
+    TIPOS = [TIPO_ENTRADA, TIPO_SALIDA]
+
+    id_movimiento = models.AutoField(primary_key=True)
+    insumo = models.ForeignKey(Insumo, on_delete=models.DO_NOTHING, db_column='insumo_id_insumo', related_name='movimientos')
+    tipo = models.CharField(max_length=20)
+    cantidad = models.DecimalField(max_digits=12, decimal_places=3)
+    stock_resultante = models.DecimalField(max_digits=12, decimal_places=3)
+    fecha_hora = models.DateTimeField()
+    motivo = models.CharField(max_length=200)
+    usuario = models.ForeignKey(Usuario, on_delete=models.DO_NOTHING, db_column='usuario_id_usuario', related_name='movimientos_insumo')
+
+    class Meta:
+        db_table = 'movimiento_insumo'
+
+    def __str__(self):
+        return f'{self.tipo} {self.insumo} {self.cantidad}'
+
+
+class NotaCredito(models.Model):
+    id_nota_credito = models.AutoField(primary_key=True)
+    encargo = models.OneToOneField(Encargo, on_delete=models.DO_NOTHING, db_column='encargo_id_encargo', related_name='nota_credito')
+    fecha_hora = models.DateTimeField()
+    monto = models.DecimalField(max_digits=12, decimal_places=2)
+    porcentaje = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
+    medio_devolucion = models.CharField(max_length=30)
+    motivo = models.CharField(max_length=200)
+    usuario = models.ForeignKey(Usuario, on_delete=models.DO_NOTHING, db_column='usuario_id_usuario', related_name='notas_credito')
+
+    class Meta:
+        db_table = 'nota_credito'
+
+    def __str__(self):
+        return f'Nota de crédito {self.numero_comprobante}'
+
+    @property
+    def numero_comprobante(self):
+        return f"0003-{self.id_nota_credito:08d}"
+
+
+class CierreCaja(models.Model):
+    id_cierre = models.AutoField(primary_key=True)
+    usuario = models.ForeignKey(Usuario, on_delete=models.DO_NOTHING, db_column='usuario_id_usuario', related_name='cierres_caja')
+    desde = models.DateTimeField()
+    hasta = models.DateTimeField()
+    cantidad_ventas = models.IntegerField(default=0)
+    total_ventas = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_senias = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_saldos = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_devoluciones = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    transferencia = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    tarjeta = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_turno = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    observacion = models.CharField(max_length=200, blank=True, null=True)
+
+    class Meta:
+        db_table = 'cierre_caja'
+
+    def __str__(self):
+        return f'Cierre de caja {self.numero_comprobante} - {self.usuario}'
+
+    @property
+    def numero_comprobante(self):
+        return f"0004-{self.id_cierre:08d}"

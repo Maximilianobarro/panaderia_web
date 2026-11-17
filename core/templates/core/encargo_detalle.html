@@ -8,10 +8,13 @@
 <body class="bg-light">
     {% include 'core/_menu.html' %}
     <div class="container mb-5">
-        <h1 class="mb-4">
-            Encargo {{ encargo.numero_comprobante }}
-            <span class="fs-6">{% include 'core/_estado_encargo.html' with estado=encargo.estado %}</span>
-        </h1>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">
+                Encargo {{ encargo.numero_comprobante }}
+                <span class="fs-6">{% include 'core/_estado_encargo.html' with estado=encargo.estado %}</span>
+            </h1>
+            <a href="{% url 'encargo_lista' %}" class="btn btn-secondary">Volver</a>
+        </div>
 
         <div class="bg-white p-3 rounded mb-3">
             <div class="row">
@@ -24,6 +27,11 @@
                 <div class="col-md-4"><strong>Medio de pago de la seña:</strong> {{ encargo.medio_pago|default:"-" }}</div>
                 <div class="col-md-4"><strong>Observación:</strong> {{ encargo.observacion|default:"-" }}</div>
             </div>
+            {% if encargo.fecha_pago_saldo %}
+            <div class="row mt-2">
+                <div class="col-md-12"><strong>Saldo cobrado:</strong> {{ encargo.fecha_pago_saldo|date:"d/m/Y H:i" }} · {{ encargo.medio_pago_saldo }} · {{ encargo.usuario_pago_saldo.nombre_usuario|default:"-" }}</div>
+            </div>
+            {% endif %}
             {% if encargo.fecha_entrega_real %}
             <div class="row mt-2">
                 <div class="col-md-12"><strong>Entregado:</strong> {{ encargo.fecha_entrega_real|date:"d/m/Y H:i" }}</div>
@@ -36,6 +44,17 @@
                 <strong>Motivo:</strong> {{ encargo.motivo_anulacion|default:"-" }}
             </div>
             {% endif %}
+            {% if nota_credito %}
+            <div class="alert alert-secondary mt-3 mb-0">
+                <strong>Nota de crédito {{ nota_credito.numero_comprobante }}</strong>
+                del {{ nota_credito.fecha_hora|date:"d/m/Y H:i" }}:
+                se devolvieron <strong>${{ nota_credito.monto|floatformat:2 }}</strong>
+                ({{ nota_credito.medio_devolucion }}) · emitió {{ nota_credito.usuario.nombre_usuario }}.
+                {% if es_admin or 'emitir_comprobante' in permisos_usuario %}
+                <a href="{% url 'encargo_nota_credito' encargo.pk %}" class="btn btn-sm btn-primary ms-2" target="_blank">Imprimir nota de crédito</a>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
 
         <table class="table table-bordered table-striped bg-white">
@@ -45,6 +64,7 @@
                     <th>Cantidad</th>
                     <th>Precio unitario</th>
                     <th>Subtotal</th>
+                    <th>Preparando</th>
                 </tr>
             </thead>
             <tbody>
@@ -54,30 +74,42 @@
                     <td>{{ d.cantidad }}</td>
                     <td>${{ d.precio_unitario|floatformat:2 }}</td>
                     <td>${{ d.subtotal|floatformat:2 }}</td>
+                    <td>
+                        {% if d.preparado %}
+                        <span class="badge text-bg-success">✓ Preparando</span>
+                        {% elif pendiente and es_admin or pendiente and 'registrar_venta' in permisos_usuario %}
+                        <form method="post" action="{% url 'encargo_item_preparado' d.pk %}" class="d-inline"
+                              onsubmit="return confirm('¿Estás seguro? Una vez marcado no se puede desmarcar y, si el cliente cancela, se aplica la política de devolución por días.');">
+                            {% csrf_token %}
+                            <button type="submit" name="preparado" value="1" class="btn btn-sm btn-outline-secondary">Marcar preparando</button>
+                        </form>
+                        {% else %}
+                        <span class="badge text-bg-secondary">No</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" class="text-center">Este encargo no tiene ítems cargados.</td>
+                    <td colspan="5" class="text-center">Este encargo no tiene ítems cargados.</td>
                 </tr>
                 {% endfor %}
             </tbody>
             <tfoot>
                 <tr>
                     <th colspan="3" class="text-end">Total</th>
-                    <th>${{ encargo.total|floatformat:2 }}</th>
+                    <th colspan="2">${{ encargo.total|floatformat:2 }}</th>
                 </tr>
                 <tr>
                     <th colspan="3" class="text-end">Seña</th>
-                    <th>${{ encargo.senia|default_if_none:0|floatformat:2 }}</th>
+                    <th colspan="2">${{ encargo.senia|default_if_none:0|floatformat:2 }}</th>
                 </tr>
                 <tr>
-                    <th colspan="3" class="text-end">Saldo a cobrar</th>
-                    <th>${{ encargo.saldo|floatformat:2 }}</th>
+                    <th colspan="3" class="text-end">{% if encargo.fecha_pago_saldo %}Saldo (cobrado){% else %}Saldo a cobrar{% endif %}</th>
+                    <th colspan="2">${{ encargo.saldo|floatformat:2 }}</th>
                 </tr>
             </tfoot>
         </table>
 
-        <a href="{% url 'encargo_lista' %}" class="btn btn-secondary">Volver</a>
         {% if es_admin or 'registrar_venta' in permisos_usuario %}
         <a href="{% url 'encargo_crear' %}" class="btn btn-success">+ Nuevo encargo</a>
         {% endif %}
@@ -87,19 +119,63 @@
 
         {% if pendiente %}
         {% if es_admin or 'registrar_venta' in permisos_usuario %}
+        {% if encargo.saldo_pagado %}
         <form method="post" action="{% url 'encargo_entregar' encargo.pk %}" class="d-inline">
             {% csrf_token %}
             <button type="submit" class="btn btn-warning">Marcar como entregado</button>
         </form>
+        {% else %}
+        <button type="button" class="btn btn-secondary" disabled title="Primero hay que cobrar el saldo">Marcar como entregado</button>
+        <form method="post" action="{% url 'encargo_pagar_saldo' encargo.pk %}" class="bg-white p-3 rounded mt-4">
+            {% csrf_token %}
+            <h5>Cobrar saldo</h5>
+            <p class="mb-2">Saldo a cobrar: <strong>${{ encargo.saldo|floatformat:2 }}</strong>. Hay que cobrarlo completo para poder marcar el encargo como entregado.</p>
+            <label class="form-label" for="medio_pago_saldo">Medio de pago del saldo</label>
+            <select id="medio_pago_saldo" name="medio_pago_saldo" class="form-select mb-2" required>
+                <option value="" selected>Elegí el medio de pago…</option>
+                {% for m in medios_pago %}
+                <option value="{{ m }}">{{ m }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-success">Registrar pago del saldo</button>
+        </form>
+        {% endif %}
         {% endif %}
 
-        {% if es_admin or 'cancelar_encargo' in permisos_usuario %}
+        {% if encargo.fecha_pago_saldo %}
+        <div class="alert alert-secondary mt-4 mb-0">El saldo ya fue cobrado: el encargo no se puede cancelar, solo entregar.</div>
+        {% elif es_admin or 'cancelar_encargo' in permisos_usuario %}
         <form method="post" action="{% url 'encargo_cancelar' encargo.pk %}" class="bg-white p-3 rounded mt-4">
             {% csrf_token %}
             <h5>Cancelar encargo</h5>
-            <p class="text-muted small">Se repone el stock de los productos. Esta acción no se puede deshacer.</p>
+            {% if merma %}
+            <div class="alert alert-warning py-2 mb-2">Si se cancela hoy, se descuenta del stock el {{ merma|floatformat:"0" }}% de los productos del encargo como merma.</div>
+            {% else %}
+            <div class="alert alert-light border py-2 mb-2">Si se cancela hoy, no se descuenta stock.</div>
+            {% endif %}
             <label class="form-label" for="motivo">Motivo (obligatorio)</label>
             <input type="text" id="motivo" name="motivo" maxlength="200" class="form-control mb-2" required>
+            {% if devolucion %}
+            <div class="alert {% if devolucion.monto %}alert-info{% else %}alert-warning{% endif %} py-2 mb-2">
+                <div>{{ devolucion.explicacion }}</div>
+                <div class="mt-1">
+                    <strong>Monto a devolver (nota de crédito):</strong> ${{ devolucion.monto|floatformat:2 }}
+                    ({{ devolucion.porcentaje|floatformat:"-2" }}% de una seña de ${{ encargo.senia|floatformat:2 }})
+                </div>
+                {% if not devolucion.monto %}<div class="small mt-1">No se emite nota de crédito.</div>{% endif %}
+            </div>
+            {% if devolucion.monto %}
+            <div class="mb-2">
+                <label class="form-label" for="medio_devolucion">Medio de devolución (debe ser el mismo con el que se pagó la seña)</label>
+                <select id="medio_devolucion" name="medio_devolucion" class="form-select" required>
+                    <option value="" selected>Elegí el medio de devolución…</option>
+                    {% for m in medios_pago %}
+                    <option value="{{ m }}">{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            {% endif %}
             <button type="submit" class="btn btn-danger">Cancelar encargo</button>
         </form>
         {% endif %}

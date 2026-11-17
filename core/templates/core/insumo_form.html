@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{% if insumo %}Editar insumo{% else %}Nuevo insumo{% endif %} - Panadería Zulca</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    {% include 'core/_menu.html' %}
+    <div class="container mb-5">
+        <h1 class="mb-4">{% if insumo %}Editar insumo{% else %}Nuevo insumo{% endif %}</h1>
+
+        <form method="post" class="bg-white p-4 rounded shadow-sm">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="mb-3">
+                <label class="form-label">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <div class="text-danger">{{ field.errors }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% if not insumo %}
+            <p class="text-muted small">El insumo empieza con stock 0. Cargá la cantidad que tenés con un movimiento de entrada.</p>
+            {% endif %}
+            <button type="submit" class="btn btn-success">Guardar</button>
+            <a href="{% url 'insumo_lista' %}" class="btn btn-secondary">Cancelar</a>
+        </form>
+    </div>
+</body>
+</html>

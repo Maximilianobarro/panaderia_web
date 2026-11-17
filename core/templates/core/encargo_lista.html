@@ -13,6 +13,7 @@
         {% if es_admin or 'registrar_venta' in permisos_usuario %}
         <a href="{% url 'encargo_crear' %}" class="btn btn-success mb-3">+ Nuevo encargo</a>
         {% endif %}
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary mb-3">Volver</a>
 
         {% for e in errores %}
         <div class="alert alert-danger">{{ e }}</div>
@@ -62,25 +63,42 @@
             </div>
         </form>
 
-        <div class="row g-3 mb-3">
-            <div class="col-6 col-md-4">
-                <div class="bg-white text-dark p-3 rounded h-100">
-                    <div class="text-muted small">Encargos pendientes</div>
-                    <div class="fs-4 fw-bold">{{ cantidad_pendientes }}</div>
-                </div>
-            </div>
-            <div class="col-6 col-md-4">
-                <div class="bg-white text-dark p-3 rounded h-100">
-                    <div class="text-muted small">Total pendiente</div>
-                    <div class="fs-4 fw-bold">${{ total_pendiente|floatformat:2 }}</div>
-                </div>
-            </div>
-            <div class="col-12 col-md-4">
-                <div class="bg-white text-dark p-3 rounded h-100">
-                    <div class="text-muted small">Saldo por cobrar (pendientes)</div>
-                    <div class="fs-4 fw-bold">${{ saldo_pendiente|floatformat:2 }}</div>
-                </div>
-            </div>
+        <div class="table-responsive mb-4 shadow rounded border border-2" style="border-color: #d2b48c !important;">
+            <table class="table table-borderless align-middle text-center mb-0 bg-white">
+                <thead style="--bs-table-bg: #eadcc8; --bs-table-color: #3e2a1e; color: #3e2a1e;">
+                    <tr>
+                        <th class="py-2 text-start">Mes de entrega</th>
+                        <th class="py-2">Encargos</th>
+                        <th class="py-2">Pendientes</th>
+                        <th class="py-2">Entregados</th>
+                        <th class="py-2">Cancelados</th>
+                        <th class="py-2">Total</th>
+                        <th class="py-2">Señas cobradas</th>
+                        <th class="py-2">Saldo por cobrar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="py-2 text-start">
+                            <form method="get">
+                                {% for campo, valor in filtros.items %}{% if valor %}<input type="hidden" name="{{ campo }}" value="{{ valor }}">{% endif %}{% endfor %}
+                                <select name="mes" class="form-select" aria-label="Mes de entrega" onchange="this.form.submit()">
+                                    {% for o in opciones_mes %}
+                                    <option value="{{ o.valor }}" {% if o.valor == resumen_mes.valor %}selected{% endif %}>{{ o.texto|capfirst }}</option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                        </td>
+                        <td class="py-3 fs-5">{{ resumen_mes.cantidad }}</td>
+                        <td class="py-3 fs-5">{{ resumen_mes.pendientes }}</td>
+                        <td class="py-3 fs-5">{{ resumen_mes.entregados }}</td>
+                        <td class="py-3 fs-5">{{ resumen_mes.cancelados }}</td>
+                        <td class="py-3 fs-4 fw-bold" style="color: #3e2a1e;">${{ resumen_mes.total|floatformat:2 }}</td>
+                        <td class="py-3 fs-5">${{ resumen_mes.senias|floatformat:2 }}</td>
+                        <td class="py-3 fs-5">${{ resumen_mes.saldo|floatformat:2 }}</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
         <table class="table table-bordered table-striped bg-white">

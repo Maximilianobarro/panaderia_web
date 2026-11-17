@@ -74,7 +74,11 @@
 
         <p class="total">TOTAL: ${{ encargo.total|floatformat:2 }}</p>
         <p class="total">SEÑA: ${{ encargo.senia|default_if_none:0|floatformat:2 }}</p>
+        {% if encargo.fecha_pago_saldo %}
+        <p class="total">SALDO COBRADO: ${{ encargo.saldo|floatformat:2 }} ({{ encargo.medio_pago_saldo }}, {{ encargo.fecha_pago_saldo|date:"d/m/Y" }})</p>
+        {% else %}
         <p class="total">SALDO A COBRAR: ${{ encargo.saldo|floatformat:2 }}</p>
+        {% endif %}
         {% if encargo.estado == 'Cancelado' %}<p class="total">ENCARGO CANCELADO</p>{% endif %}
         <p class="pie">Gracias por su encargo.</p>
     </div>

@@ -61,11 +61,11 @@
                     </div>
                     <div class="mb-2">
                         <label class="form-label mb-1" for="fecha_entrega">Fecha de entrega</label>
-                        <input type="date" id="fecha_entrega" name="fecha_entrega" class="form-control" min="{{ hoy }}" value="{{ datos.fecha_entrega }}" required>
+                        <input type="date" id="fecha_entrega" name="fecha_entrega" class="form-control" min="{{ hoy }}" max="{{ hoy_max }}" value="{{ datos.fecha_entrega }}" required>
                     </div>
                     <div class="mb-2">
-                        <label class="form-label mb-1" for="senia">Seña (opcional)</label>
-                        <input type="number" id="senia" name="senia" min="0" step="0.01" class="form-control" value="{{ datos.senia }}">
+                        <label class="form-label mb-1" for="senia">Seña (50% mínimo)</label>
+                        <input type="number" id="senia" name="senia" min="0" step="0.01" class="form-control" value="{{ datos.senia }}" required>
                     </div>
                     <div class="mb-2">
                         <label class="form-label mb-1" for="medio_pago">Medio de pago de la seña</label>
@@ -104,7 +104,7 @@
                             <a href="{% url 'encargo_lista' %}" class="btn btn-outline-secondary flex-fill">Cancelar</a>
                         </div>
                     </div>
-                    <p class="text-muted small mt-3 mb-0">La fecha de pedido, el número, el usuario y el estado (Pendiente) se registran automáticamente. El stock se descuenta al registrar y se repone si el encargo se cancela.</p>
+                    <p class="text-muted small mt-3 mb-0">La fecha de pedido, el número, el usuario y el estado (Pendiente) se registran automáticamente. El stock se descuenta al marcar el encargo como entregado; al registrarlo se controla que alcance el stock disponible (stock menos lo reservado en otros encargos pendientes).</p>
                 </form>
             </div>
         </div>

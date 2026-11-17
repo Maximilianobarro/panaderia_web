@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cierre de caja {{ cierre.numero_comprobante }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #eee; color: #222; margin: 0; padding: 24px; }
+        .barra { max-width: 820px; margin: 0 auto 16px; display: flex; gap: 8px; }
+        .barra button, .barra a { padding: 8px 16px; border: 1px solid #555; background: #fff; color: #222; text-decoration: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
+        .hoja { max-width: 820px; margin: 0 auto; background: #fff; border: 1px solid #999; padding: 32px; }
+        h1 { margin: 0; font-size: 24px; }
+        .sub { color: #555; margin: 4px 0 20px; }
+        .datos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 14px; }
+        th, td { border-bottom: 1px solid #ccc; padding: 6px; text-align: left; }
+        th { background: #f2f2f2; }
+        td.num, th.num { text-align: right; }
+        tfoot td { font-weight: bold; }
+        .total { text-align: right; font-size: 20px; font-weight: bold; }
+        @media print {
+            body { background: #fff; padding: 0; }
+            .barra { display: none; }
+            .hoja { border: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="barra">
+        <button type="button" onclick="window.print()">Imprimir / Guardar como PDF</button>
+        <a href="{% url 'caja_lista' %}">Volver</a>
+    </div>
+
+    <div class="hoja">
+        <h1>Panadería Zulca</h1>
+        <p class="sub">Cierre de caja N° {{ cierre.numero_comprobante }}</p>
+
+        <div class="datos">
+            <div><strong>Empleado:</strong> {{ cierre.usuario.nombre_usuario }}</div>
+            <div><strong>Ventas registradas:</strong> {{ cierre.cantidad_ventas }}</div>
+            <div><strong>Desde:</strong> {{ desde_txt }}</div>
+            <div><strong>Hasta:</strong> {{ hasta_txt }}</div>
+            {% if cierre.observacion %}<div><strong>Observación:</strong> {{ cierre.observacion }}</div>{% endif %}
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Concepto</th>
+                    {% for m in datos.medios %}<th class="num">{{ m }}</th>{% endfor %}
+                    <th class="num">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in datos.filas %}
+                <tr>
+                    <td>{{ f.nombre }}</td>
+                    {% for importe in f.importes %}<td class="num">{{ f.signo }}${{ importe|floatformat:2 }}</td>{% endfor %}
+                    <td class="num">{{ f.signo }}${{ f.total|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td>Total del turno</td>
+                    {% for importe in datos.neto_medios %}<td class="num">${{ importe|floatformat:2 }}</td>{% endfor %}
+                    <td class="num">${{ cierre.total_turno|floatformat:2 }}</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <p class="total">TOTAL DEL TURNO: ${{ cierre.total_turno|floatformat:2 }}</p>
+    </div>
+</body>
+</html>

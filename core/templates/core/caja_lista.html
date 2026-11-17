@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cierres de caja - Panadería Zulca</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    {% include 'core/_menu.html' %}
+    <div class="container mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">Cierres de caja</h1>
+            <a href="{% url 'venta_lista' %}" class="btn btn-secondary">Volver</a>
+        </div>
+
+        {% if not es_admin_caja %}
+        <a href="{% url 'caja_cerrar' %}" class="btn btn-warning mb-3">Cierre de caja</a>
+        {% endif %}
+
+        <form method="get" class="bg-white p-3 rounded mb-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label" for="fecha">Fecha</label>
+                    <input type="text" id="fecha" name="fecha" value="{{ filtros.fecha }}" class="form-control fecha" placeholder="dd/mm/aaaa">
+                </div>
+                {% if es_admin_caja %}
+                <div class="col-md-3">
+                    <label class="form-label" for="empleado">Empleado</label>
+                    <select id="empleado" name="empleado" class="form-select">
+                        <option value="">Todos</option>
+                        {% for u in empleados %}
+                        <option value="{{ u.pk }}" {% if filtros.empleado == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.nombre_usuario }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                    <a href="{% url 'caja_lista' %}" class="btn btn-secondary">Hoy</a>
+                </div>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped bg-white align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>N° cierre</th>
+                        {% if es_admin_caja %}<th>Empleado</th>{% endif %}
+                        <th>Turno</th>
+                        <th class="text-end">Ventas</th>
+                        <th class="text-end">Señas</th>
+                        <th class="text-end">Saldos</th>
+                        <th class="text-end">Devoluciones</th>
+                        <th class="text-end">Efectivo</th>
+                        <th class="text-end">Transferencia</th>
+                        <th class="text-end">Tarjeta</th>
+                        <th class="text-end">Total del turno</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in cierres %}
+                    <tr>
+                        <td>{{ c.numero_comprobante }}</td>
+                        {% if es_admin_caja %}<td>{{ c.usuario.nombre_usuario }}</td>{% endif %}
+                        <td class="small">{{ c.desde_txt }} a {{ c.hasta_txt }}</td>
+                        <td class="text-end">${{ c.total_ventas|floatformat:2 }} ({{ c.cantidad_ventas }})</td>
+                        <td class="text-end">${{ c.total_senias|floatformat:2 }}</td>
+                        <td class="text-end">${{ c.total_saldos|floatformat:2 }}</td>
+                        <td class="text-end">−${{ c.total_devoluciones|floatformat:2 }}</td>
+                        <td class="text-end">${{ c.efectivo|floatformat:2 }}</td>
+                        <td class="text-end">${{ c.transferencia|floatformat:2 }}</td>
+                        <td class="text-end">${{ c.tarjeta|floatformat:2 }}</td>
+                        <td class="text-end fw-bold">${{ c.total_turno|floatformat:2 }}</td>
+                        <td><a href="{% url 'caja_comprobante' c.pk %}" class="btn btn-sm btn-primary" target="_blank">Ver / Imprimir</a></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{% if es_admin_caja %}12{% else %}11{% endif %}" class="text-center">No hay cierres de caja el {{ fecha_txt }}.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if cierres %}
+                <tfoot>
+                    <tr class="fw-bold">
+                        <td colspan="{% if es_admin_caja %}3{% else %}2{% endif %}">Total del día {{ fecha_txt }}</td>
+                        <td class="text-end">${{ total_dia.total_ventas|floatformat:2 }} ({{ total_dia.cantidad_ventas }})</td>
+                        <td class="text-end">${{ total_dia.total_senias|floatformat:2 }}</td>
+                        <td class="text-end">${{ total_dia.total_saldos|floatformat:2 }}</td>
+                        <td class="text-end">−${{ total_dia.total_devoluciones|floatformat:2 }}</td>
+                        <td class="text-end">${{ total_dia.efectivo|floatformat:2 }}</td>
+                        <td class="text-end">${{ total_dia.transferencia|floatformat:2 }}</td>
+                        <td class="text-end">${{ total_dia.tarjeta|floatformat:2 }}</td>
+                        <td class="text-end">${{ total_dia.total_turno|floatformat:2 }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/es.js"></script>
+    <script>
+        flatpickr('.fecha', { locale: 'es', dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y' });
+    </script>
+</body>
+</html>

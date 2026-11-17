@@ -7,6 +7,8 @@ from . import views_auditoria as aud
 from . import views_hito2 as h2
 from . import views_hito3 as h3
 from . import views_encargos as enc
+from . import views_insumos as ins
+from . import views_caja as caja
 
 urlpatterns = [
     path('', RedirectView.as_view(url='/inicio/', permanent=False)),
@@ -84,8 +86,22 @@ urlpatterns = [
     path('encargos/nuevo/', enc.encargo_crear, name='encargo_crear'),
     path('encargos/<int:pk>/', enc.encargo_detalle, name='encargo_detalle'),
     path('encargos/<int:pk>/entregar/', enc.encargo_entregar, name='encargo_entregar'),
+    path('encargos/<int:pk>/pagar-saldo/', enc.encargo_pagar_saldo, name='encargo_pagar_saldo'),
     path('encargos/<int:pk>/cancelar/', enc.encargo_cancelar, name='encargo_cancelar'),
     path('encargos/<int:pk>/comprobante/', enc.encargo_comprobante, name='encargo_comprobante'),
-    path('detalle-encargos/', enc.produccion_lista, name='detalle_encargo_lista'),
-    path('detalle-encargos/<int:pk>/preparado/', enc.encargo_item_preparado, name='encargo_item_preparado'),
+    path('encargos/<int:pk>/nota-credito/', enc.encargo_nota_credito, name='encargo_nota_credito'),
+    path('encargos/linea/<int:pk>/preparado/', enc.encargo_item_preparado, name='encargo_item_preparado'),
+
+    # ---------- CAJA ----------
+    path('caja/', caja.caja_lista, name='caja_lista'),
+    path('caja/cerrar/', caja.caja_cerrar, name='caja_cerrar'),
+    path('caja/<int:pk>/', caja.caja_comprobante, name='caja_comprobante'),
+
+    # ---------- INSUMOS ----------
+    path('insumos/', ins.insumo_lista, name='insumo_lista'),
+    path('insumos/nuevo/', ins.insumo_crear, name='insumo_crear'),
+    path('insumos/<int:pk>/editar/', ins.insumo_editar, name='insumo_editar'),
+    path('insumos/<int:pk>/estado/', ins.insumo_estado, name='insumo_estado'),
+    path('insumos/<int:pk>/movimientos/', ins.insumo_movimientos, name='insumo_movimientos'),
+    path('insumos/<int:pk>/movimientos/registrar/', ins.insumo_movimiento_registrar, name='insumo_movimiento_registrar'),
 ]

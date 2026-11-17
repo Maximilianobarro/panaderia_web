@@ -13,6 +13,7 @@
         {% if es_admin or not permiso_editar or permiso_editar in permisos_usuario %}
         <a href="{% url crear_url %}" class="btn btn-success mb-3">+ Nuevo</a>
         {% endif %}
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary mb-3">Volver</a>
 
         <table class="table table-bordered table-striped bg-white">
             <thead class="table-dark">
