@@ -37,6 +37,18 @@
         </a>
         {% endif %}
 
+        {% if es_admin or 'cierre_caja' in permisos_usuario %}
+        <a class="dash-card" href="{% url 'caja_index' %}">
+            <span class="icon">💵</span><h3>Caja</h3><p>Apertura y cierre de caja</p>
+        </a>
+        {% endif %}
+
+        {% if es_admin or 'ver_reportes' in permisos_usuario %}
+        <a class="dash-card" href="{% url 'reporte_index' %}">
+            <span class="icon">📊</span><h3>Reportes</h3><p>Análisis de ventas, gráficos y PDF</p>
+        </a>
+        {% endif %}
+
         {% if es_admin or 'ver_productos' in permisos_usuario %}
         <a class="dash-card" href="{% url 'insumo_lista' %}">
             <span class="icon">🌾</span><h3>Insumos</h3><p>Materia prima y avisos de stock</p>

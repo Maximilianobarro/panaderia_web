@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime, time, timedelta
 
 from django.apps import apps
@@ -8,10 +9,83 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .auth_utils import permiso_requerido
-from .models import DetalleEncargo, Encargo, LogAuditoria, Usuario
+from .models import Categoria, Cliente, DetalleEncargo, Encargo, LogAuditoria, Producto, Rol, Usuario
 
 PERMISO_AUDITORIA = 'ver_auditoria'
 FILAS_POR_PAGINA = 30
+
+NOMBRES_CAMPOS = {
+    'nombre': 'Nombre',
+    'apellido': 'Apellido',
+    'descripcion': 'Descripción',
+    'activo': 'Alta / baja',
+    'nombre_permiso': 'Nombre del permiso',
+    'nombre_rol': 'Nombre del rol',
+    'email': 'Email',
+    'calle': 'Calle',
+    'numero': 'Número',
+    'ciudad': 'Ciudad',
+    'fecha_alta': 'Fecha de alta',
+    'dni': 'DNI',
+    'nombre_usuario': 'Nombre de usuario',
+    'contrasena_hash': 'Contraseña',
+    'debe_cambiar_clave': 'Debe cambiar la contraseña',
+    'fecha_baja': 'Fecha de baja',
+    'estado': 'Estado',
+    'rol_id': 'Rol',
+    'precio_unitario': 'Precio unitario',
+    'stock_actual': 'Stock actual',
+    'stock_minimo': 'Stock mínimo',
+    'unidad': 'Unidad',
+    'categoria_id': 'Categoría',
+    'fecha_pedido': 'Fecha del pedido',
+    'fecha_entrega_prevista': 'Fecha de entrega prevista',
+    'senia': 'Seña',
+    'total': 'Total',
+    'medio_pago': 'Medio de pago de la seña',
+    'observacion': 'Observación',
+    'usuario_id': 'Registrado por',
+    'cliente_id': 'Cliente',
+    'fecha_entrega_real': 'Fecha de entrega',
+    'fecha_anulacion': 'Fecha de cancelación',
+    'motivo_anulacion': 'Motivo de cancelación',
+    'usuario_anulacion_id': 'Cancelado por',
+    'fecha_hora_registro': 'Fecha y hora de registro',
+    'fecha_pago_saldo': 'Fecha de cobro del saldo',
+    'medio_pago_saldo': 'Medio de cobro del saldo',
+    'usuario_pago_saldo_id': 'Cobrado por',
+    'producto_id': 'Producto',
+    'encargo_id': 'Encargo',
+    'cantidad': 'Cantidad',
+    'subtotal': 'Subtotal',
+    'preparado': 'Preparando',
+    'porcentaje_devolucion': 'Porcentaje de devolución',
+    'merma_porcentaje': 'Porcentaje de merma',
+    'nota_credito': 'Nota de crédito',
+    'monto_devuelto': 'Monto devuelto',
+}
+
+TEXTO_VACIO = {
+    'fecha_pago_saldo': 'Pendiente',
+    'medio_pago_saldo': 'Pendiente',
+    'usuario_pago_saldo_id': 'Pendiente',
+    'fecha_entrega_real': 'No entregado',
+    'fecha_anulacion': 'No cancelado',
+    'motivo_anulacion': 'No cancelado',
+    'usuario_anulacion_id': 'No cancelado',
+    'fecha_baja': 'Activo',
+}
+
+CAMPOS_RELACION = {
+    'usuario_id': Usuario,
+    'usuario_anulacion_id': Usuario,
+    'usuario_pago_saldo_id': Usuario,
+    'rol_id': Rol,
+    'categoria_id': Categoria,
+    'cliente_id': Cliente,
+    'producto_id': Producto,
+    'encargo_id': Encargo,
+}
 
 
 def _parse_fecha(texto):
@@ -35,20 +109,67 @@ def _leer(texto):
     return datos if isinstance(datos, dict) else {}
 
 
-def _mostrar(campo, valor):
-    if campo == 'activo' and isinstance(valor, bool):
-        return 'Dado de alta' if valor else 'Dado de baja'
-    if campo == 'preparado' and isinstance(valor, bool):
+def _fecha_legible(valor):
+    try:
+        if len(valor) == 10:
+            return datetime.strptime(valor, '%Y-%m-%d').strftime('%d/%m/%Y')
+        momento = datetime.fromisoformat(valor.replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    if timezone.is_naive(momento):
+        return momento.strftime('%d/%m/%Y %H:%M')
+    return timezone.localtime(momento).strftime('%d/%m/%Y %H:%M')
+
+
+def _texto_relacion(objeto):
+    if isinstance(objeto, Usuario):
+        return f'{objeto.nombre} {objeto.apellido}'
+    if isinstance(objeto, Encargo):
+        return objeto.numero_comprobante
+    return str(objeto)
+
+
+def _mostrar(campo, valor, relaciones):
+    if valor is None or valor == '':
+        return TEXTO_VACIO.get(campo, 'Sin dato')
+    if campo in CAMPOS_RELACION:
+        objeto = relaciones.get((CAMPOS_RELACION[campo], str(valor)))
+        return _texto_relacion(objeto) if objeto is not None else valor
+    if isinstance(valor, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}([T ][\d:.]+(Z|[+-]\d{2}:?\d{2})?)?', valor):
+        legible = _fecha_legible(valor)
+        if legible:
+            return legible
+    if isinstance(valor, bool):
+        if campo == 'activo':
+            return 'Dado de alta' if valor else 'Dado de baja'
         return 'Sí' if valor else 'No'
     return valor
 
 
-def _cambios(log):
+def _relaciones(filas):
+    ids_por_modelo = {}
+    for fila in filas:
+        for datos in (_leer(fila.valores_anteriores), _leer(fila.valores_actuales)):
+            for campo, valor in datos.items():
+                if campo in CAMPOS_RELACION and valor not in (None, ''):
+                    ids_por_modelo.setdefault(CAMPOS_RELACION[campo], set()).add(valor)
+    relaciones = {}
+    for modelo, ids in ids_por_modelo.items():
+        for pk, objeto in modelo.objects.in_bulk(list(ids)).items():
+            relaciones[(modelo, str(pk))] = objeto
+    return relaciones
+
+
+def _cambios(log, relaciones):
     antes = _leer(log.valores_anteriores)
     despues = _leer(log.valores_actuales)
     campos = list(antes) + [c for c in despues if c not in antes]
     return [
-        {'campo': c, 'antes': _mostrar(c, antes.get(c, '-')), 'despues': _mostrar(c, despues.get(c, '-'))}
+        {
+            'campo': NOMBRES_CAMPOS.get(c, c),
+            'antes': _mostrar(c, antes[c], relaciones) if c in antes else '-',
+            'despues': _mostrar(c, despues[c], relaciones) if c in despues else '-',
+        }
         for c in campos
     ]
 
@@ -111,8 +232,9 @@ def auditoria_lista(request):
 
     pagina = Paginator(logs.order_by('-fecha_hora', '-id_log'), FILAS_POR_PAGINA).get_page(request.GET.get('page'))
     filas = list(pagina.object_list)
+    relaciones = _relaciones(filas)
     for fila in filas:
-        fila.cambios = _cambios(fila)
+        fila.cambios = _cambios(fila, relaciones)
     _nombres_afectados(filas)
     parametros = request.GET.copy()
     parametros.pop('page', None)

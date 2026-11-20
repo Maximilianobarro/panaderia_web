@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reportes - Panadería Zulca</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" rel="stylesheet">
+    <style>
+        .tarjeta { background: #fff; border-radius: 10px; box-shadow: 0 2px 6px rgba(0, 0, 0, .12); }
+        .indicador { display: flex; align-items: center; gap: 14px; padding: 16px; height: 100%; }
+        .indicador .icono { font-size: 1.6rem; width: 52px; height: 52px; border-radius: 12px; background: #eadcc8;
+                            display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .indicador .valor { font-size: 1.35rem; font-weight: 700; color: #3e2a1e; line-height: 1.2; }
+        .indicador .nombre { font-size: .85rem; color: #6b6b6b; }
+        .indicador .detalle { font-size: .75rem; color: #8a8a8a; }
+        .estadistico { text-align: center; padding: 12px; height: 100%; border-top: 4px solid #d39a3a; }
+        .estadistico .valor { font-size: 1.15rem; font-weight: 700; color: #3e2a1e; }
+        .estadistico .nombre { font-size: .8rem; color: #6b6b6b; }
+        .estadistico .detalle { font-size: .72rem; color: #8a8a8a; }
+        .grafico-cabecera { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+                            padding: 14px 16px; border-bottom: 1px solid #eee; }
+        .grafico-cabecera h5 { color: #3e2a1e; margin-bottom: 2px; font-size: 1.05rem; font-weight: 700; }
+        .grafico-cabecera .pregunta { font-size: .85rem; color: #6b6b6b; margin-bottom: 6px; }
+        .tipo { background: #eadcc8; color: #3e2a1e; font-size: .72rem; padding: 2px 8px; border-radius: 10px; }
+        .seccion { color: #fff; font-weight: 700; margin: 28px 0 12px; }
+    </style>
+</head>
+<body class="bg-light">
+    {% include 'core/_menu.html' %}
+    <div class="container-fluid px-4 mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h1 class="mb-0">Reportes</h1>
+            <a href="{% url 'dashboard' %}" class="btn btn-secondary">Volver</a>
+        </div>
+
+        <h4 class="seccion mt-2">Reportes consolidados (tablas con PDF)</h4>
+        <div class="d-flex flex-wrap gap-2 mb-2">
+            <a href="{% url 'reporte_productos' %}" class="btn btn-light border">📦 Ventas por producto</a>
+            <a href="{% url 'reporte_clientes' %}" class="btn btn-light border">👥 Ranking de clientes</a>
+            <a href="{% url 'reporte_tablero' %}{% if parametros %}?{{ parametros }}{% endif %}" class="btn btn-light border" title="Resumen de los 4 gráficos e indicadores en una página para imprimir">🖨️ Tablero ejecutivo (PDF)</a>
+            {% if es_admin or 'ver_reporte_empleados' in permisos_usuario %}
+            <a href="{% url 'reporte_empleados' %}" class="btn btn-light border">🔒 Rendición por empleado <span class="badge text-bg-danger">Restringido</span></a>
+            {% endif %}
+        </div>
+
+        <h4 class="seccion">Análisis de ventas</h4>
+
+        {% for e in errores %}
+        <div class="alert alert-warning">{{ e }}</div>
+        {% endfor %}
+
+        <form method="get" class="tarjeta p-3 mb-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label" for="desde">Fecha desde</label>
+                    <input type="text" id="desde" name="desde" value="{{ desde }}" class="form-control fecha" placeholder="dd/mm/aaaa">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="hasta">Fecha hasta</label>
+                    <input type="text" id="hasta" name="hasta" value="{{ hasta }}" class="form-control fecha" placeholder="dd/mm/aaaa">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="categoria">Categoría</label>
+                    <select id="categoria" name="categoria" class="form-select">
+                        <option value="">Todas</option>
+                        {% for c in categorias %}
+                        <option value="{{ c }}" {% if c == categoria %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <button type="submit" class="btn btn-primary">Actualizar análisis</button>
+                    <a href="{% url 'reporte_index' %}" class="btn btn-secondary">Limpiar</a>
+                    {% if graficos %}
+                    <a href="?{% if parametros %}{{ parametros }}&{% endif %}formato=pdf" class="btn btn-danger">Exportar PDF</a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+
+        <p class="text-white mb-3">
+            Filtros aplicados:
+            {% for nombre, valor in filtros_pie %}{{ nombre }}: <strong>{{ valor }}</strong>{% if not forloop.last %} · {% endif %}{% endfor %}
+        </p>
+
+        {% if principales %}
+        <div class="row g-3 mb-3">
+            {% for nombre, valor, detalle in principales %}
+            <div class="col-md-6 col-xl-3">
+                <div class="tarjeta indicador">
+                    <div class="icono">{% cycle '💰' '🧾' '🎟️' '🏆' %}</div>
+                    <div>
+                        <div class="nombre">{{ nombre }}</div>
+                        <div class="valor">{{ valor }}</div>
+                        <div class="detalle">{{ detalle }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="row g-3 mb-4">
+            {% for nombre, valor, detalle in estadisticos %}
+            <div class="col-md-6 col-xl-3">
+                <div class="tarjeta estadistico">
+                    <div class="nombre">{{ nombre }}</div>
+                    <div class="valor">{{ valor }}</div>
+                    <div class="detalle">{{ detalle }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="row g-4">
+            {% for g in graficos %}
+            <div class="col-xl-6">
+                <div class="tarjeta h-100">
+                    <div class="grafico-cabecera">
+                        <div>
+                            <h5>{{ g.titulo }}</h5>
+                            <div class="pregunta">{{ g.pregunta }}</div>
+                            <span class="tipo">{{ g.tipo }}</span>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm descargar" data-imagen="grafico-{{ forloop.counter }}" data-archivo="{{ g.archivo }}" title="Descargar PNG">⬇ PNG</button>
+                    </div>
+                    <div class="p-3">
+                        <img id="grafico-{{ forloop.counter }}" src="{{ g.imagen }}" alt="{{ g.titulo }}" class="img-fluid d-block mx-auto">
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/es.js"></script>
+    <script>
+        flatpickr('.fecha', { locale: 'es', dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y' });
+        // Descarga cada gráfico como PNG usando la imagen que ya está en la página.
+        document.querySelectorAll('.descargar').forEach(function (boton) {
+            boton.addEventListener('click', function () {
+                var enlace = document.createElement('a');
+                enlace.href = document.getElementById(boton.dataset.imagen).src;
+                enlace.download = boton.dataset.archivo;
+                document.body.appendChild(enlace);
+                enlace.click();
+                enlace.remove();
+            });
+        });
+    </script>
+</body>
+</html>

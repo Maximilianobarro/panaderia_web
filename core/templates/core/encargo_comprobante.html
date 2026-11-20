@@ -17,12 +17,28 @@
         td.num, th.num { text-align: right; }
         .total { text-align: right; font-size: 20px; font-weight: bold; }
         .pie { text-align: center; color: #555; margin-top: 24px; font-size: 13px; }
+        .pagos-titulo { font-size: 15px; font-weight: bold; margin: 20px 0 8px; border-bottom: 2px solid #222; padding-bottom: 4px; }
+        .fila { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 6px 0; }
+        .fila .concepto { font-weight: bold; }
+        .fila .detalle { display: block; font-weight: normal; color: #555; font-size: 12px; }
+        .fila .importe { font-weight: bold; white-space: nowrap; }
+        .fila.total-encargo { font-size: 16px; border-bottom: 1px solid #ccc; }
+        .fila.pagado { font-size: 16px; border-top: 1px solid #ccc; }
+        .fila.pendiente .importe { color: #a94442; }
+        .estado-pago { margin-top: 14px; padding: 10px; text-align: center; font-size: 17px; font-weight: bold; border: 2px solid; }
+        .estado-pago.ok { color: #1e6b34; border-color: #1e6b34; background: #eef8f0; }
+        .estado-pago.debe { color: #a94442; border-color: #a94442; background: #fbefee; }
+        .estado-pago.anulado { color: #555; border-color: #555; background: #f2f2f2; }
+        .estado-pago small { display: block; font-size: 12px; font-weight: normal; margin-top: 4px; }
         .hoja.ticket { max-width: 300px; padding: 12px; border: 1px solid #999; font-family: "Courier New", monospace; font-size: 13px; }
         .ticket h1 { font-size: 18px; text-align: center; }
         .ticket .sub { text-align: center; }
         .ticket .datos { grid-template-columns: 1fr; }
         .ticket th, .ticket td { padding: 3px 2px; }
         .ticket .total { font-size: 16px; }
+        .ticket .fila { flex-wrap: wrap; }
+        .ticket .fila .importe { margin-left: auto; }
+        .ticket .estado-pago { font-size: 14px; }
         @media print {
             body { background: #fff; padding: 0; }
             .barra { display: none; }
@@ -46,7 +62,6 @@
             <div><strong>Entrega prevista:</strong> {{ encargo.fecha_entrega_prevista|date:"d/m/Y"|default:"-" }}</div>
             <div><strong>Cliente:</strong> {{ encargo.cliente }}</div>
             <div><strong>Atendió:</strong> {{ encargo.usuario.nombre_usuario }}</div>
-            <div><strong>Medio de pago de la seña:</strong> {{ encargo.medio_pago|default:"-" }}</div>
             <div><strong>Estado:</strong> {{ encargo.estado|default_if_none:"-" }}</div>
             {% if encargo.observacion %}<div><strong>Observación:</strong> {{ encargo.observacion }}</div>{% endif %}
         </div>
@@ -72,14 +87,75 @@
             </tbody>
         </table>
 
-        <p class="total">TOTAL: ${{ encargo.total|floatformat:2 }}</p>
-        <p class="total">SEÑA: ${{ encargo.senia|default_if_none:0|floatformat:2 }}</p>
-        {% if encargo.fecha_pago_saldo %}
-        <p class="total">SALDO COBRADO: ${{ encargo.saldo|floatformat:2 }} ({{ encargo.medio_pago_saldo }}, {{ encargo.fecha_pago_saldo|date:"d/m/Y" }})</p>
-        {% else %}
-        <p class="total">SALDO A COBRAR: ${{ encargo.saldo|floatformat:2 }}</p>
+        <div class="pagos-titulo">Pagos del encargo</div>
+
+        <div class="fila total-encargo">
+            <span class="concepto">Total del encargo</span>
+            <span class="importe">${{ encargo.total|floatformat:2 }}</span>
+        </div>
+
+        <div class="fila">
+            <span class="concepto">1) Seña (pago al hacer el pedido)
+                <span class="detalle">
+                    {% if encargo.fecha_hora_registro %}{{ encargo.fecha_hora_registro|date:"d/m/Y H:i" }}{% else %}{{ encargo.fecha_pedido|date:"d/m/Y"|default:"-" }}{% endif %}
+                    · {{ encargo.medio_pago|default:"Sin dato" }} · cobró {{ encargo.usuario.nombre_usuario }}
+                </span>
+            </span>
+            <span class="importe">${{ senia|floatformat:2 }}</span>
+        </div>
+
+        {% if cubierto_con_senia %}
+        <div class="fila">
+            <span class="concepto">2) Saldo
+                <span class="detalle">No corresponde: la seña cubrió el total.</span>
+            </span>
+            <span class="importe">$0.00</span>
+        </div>
+        {% elif encargo.fecha_pago_saldo %}
+        <div class="fila">
+            <span class="concepto">2) Saldo (pago final)
+                <span class="detalle">
+                    {{ encargo.fecha_pago_saldo|date:"d/m/Y H:i" }} · {{ encargo.medio_pago_saldo|default:"Sin dato" }}
+                    · cobró {{ encargo.usuario_pago_saldo.nombre_usuario|default:"-" }}
+                </span>
+            </span>
+            <span class="importe">${{ encargo.saldo|floatformat:2 }}</span>
+        </div>
+        {% elif not cancelado %}
+        <div class="fila pendiente">
+            <span class="concepto">2) Saldo (pago final)
+                <span class="detalle">Se paga al retirar el encargo.</span>
+            </span>
+            <span class="importe">Pendiente</span>
+        </div>
         {% endif %}
-        {% if encargo.estado == 'Cancelado' %}<p class="total">ENCARGO CANCELADO</p>{% endif %}
+
+        <div class="fila pagado">
+            <span class="concepto">Total pagado</span>
+            <span class="importe">${{ total_pagado|floatformat:2 }}</span>
+        </div>
+
+        {% if cancelado %}
+        <div class="estado-pago anulado">
+            ENCARGO CANCELADO
+            {% if nota_credito %}
+            <small>Se devolvieron ${{ nota_credito.monto|floatformat:2 }} ({{ nota_credito.medio_devolucion }}) con la nota de crédito {{ nota_credito.numero_comprobante }} del {{ nota_credito.fecha_hora|date:"d/m/Y" }}.</small>
+            {% else %}
+            <small>No hubo devolución de la seña.</small>
+            {% endif %}
+        </div>
+        {% elif resta %}
+        <div class="estado-pago debe">
+            RESTA PAGAR: ${{ resta|floatformat:2 }}
+            <small>Se paga al retirar el encargo.</small>
+        </div>
+        {% else %}
+        <div class="estado-pago ok">
+            PAGADO EN SU TOTALIDAD
+            <small>No queda saldo pendiente.</small>
+        </div>
+        {% endif %}
+
         <p class="pie">Gracias por su encargo.</p>
     </div>
     <script>

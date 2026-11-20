@@ -9,6 +9,8 @@ from . import views_hito3 as h3
 from . import views_encargos as enc
 from . import views_insumos as ins
 from . import views_caja as caja
+from . import views_alertas as alertas
+from . import views_reportes as rep
 
 urlpatterns = [
     path('', RedirectView.as_view(url='/inicio/', permanent=False)),
@@ -93,8 +95,10 @@ urlpatterns = [
     path('encargos/linea/<int:pk>/preparado/', enc.encargo_item_preparado, name='encargo_item_preparado'),
 
     # ---------- CAJA ----------
-    path('caja/', caja.caja_lista, name='caja_lista'),
+    path('caja/', caja.caja_index, name='caja_index'),
+    path('caja/abrir/', caja.caja_abrir, name='caja_abrir'),
     path('caja/cerrar/', caja.caja_cerrar, name='caja_cerrar'),
+    path('caja/historial/', caja.caja_lista, name='caja_lista'),
     path('caja/<int:pk>/', caja.caja_comprobante, name='caja_comprobante'),
 
     # ---------- INSUMOS ----------
@@ -104,4 +108,17 @@ urlpatterns = [
     path('insumos/<int:pk>/estado/', ins.insumo_estado, name='insumo_estado'),
     path('insumos/<int:pk>/movimientos/', ins.insumo_movimientos, name='insumo_movimientos'),
     path('insumos/<int:pk>/movimientos/registrar/', ins.insumo_movimiento_registrar, name='insumo_movimiento_registrar'),
+
+    # ---------- NOTIFICACIONES Y ALERTAS (Parcial Nº2, M3) ----------
+    path('notificaciones/', alertas.notificacion_lista, name='notificacion_lista'),
+    path('notificaciones/<int:pk>/leer/', alertas.notificacion_leer, name='notificacion_leer'),
+    path('notificaciones/leer-todas/', alertas.notificacion_leer_todas, name='notificacion_leer_todas'),
+    path('configuracion/', alertas.configuracion_editar, name='configuracion_editar'),
+
+    # ---------- REPORTES CONSOLIDADOS (Parcial Nº2, M2) ----------
+    path('reportes/', rep.reporte_index, name='reporte_index'),
+    path('reportes/ventas-por-producto/', rep.reporte_productos, name='reporte_productos'),
+    path('reportes/ranking-clientes/', rep.reporte_clientes, name='reporte_clientes'),
+    path('reportes/rendicion-empleados/', rep.reporte_empleados, name='reporte_empleados'),
+    path('reportes/tablero/', rep.reporte_tablero, name='reporte_tablero'),
 ]

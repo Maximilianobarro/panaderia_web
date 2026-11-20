@@ -323,10 +323,15 @@ class NotaCredito(models.Model):
 
 
 class CierreCaja(models.Model):
+    ESTADO_ABIERTA = 'Abierta'
+    ESTADO_CERRADA = 'Cerrada'
+
     id_cierre = models.AutoField(primary_key=True)
     usuario = models.ForeignKey(Usuario, on_delete=models.DO_NOTHING, db_column='usuario_id_usuario', related_name='cierres_caja')
+    estado = models.CharField(max_length=20, default='Cerrada')
+    fondo_inicial = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     desde = models.DateTimeField()
-    hasta = models.DateTimeField()
+    hasta = models.DateTimeField(blank=True, null=True)
     cantidad_ventas = models.IntegerField(default=0)
     total_ventas = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_senias = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -336,6 +341,7 @@ class CierreCaja(models.Model):
     transferencia = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     tarjeta = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_turno = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    efectivo_esperado = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     observacion = models.CharField(max_length=200, blank=True, null=True)
 
     class Meta:
@@ -347,3 +353,36 @@ class CierreCaja(models.Model):
     @property
     def numero_comprobante(self):
         return f"0004-{self.id_cierre:08d}"
+
+
+class Configuracion(models.Model):
+    id_configuracion = models.AutoField(primary_key=True)
+    clave = models.CharField(max_length=60, unique=True)
+    valor = models.CharField(max_length=200, blank=True, default='')
+    descripcion = models.CharField(max_length=200, blank=True, default='')
+
+    class Meta:
+        db_table = 'configuracion'
+
+    def __str__(self):
+        return f'{self.clave} = {self.valor}'
+
+
+class Notificacion(models.Model):
+    id_notificacion = models.AutoField(primary_key=True)
+    fecha = models.DateTimeField()
+    tipo = models.CharField(max_length=60)
+    mensaje = models.CharField(max_length=300)
+    destino_perfil = models.CharField(max_length=50)
+    leida = models.BooleanField(default=False)
+    fecha_lectura = models.DateTimeField(blank=True, null=True)
+    regla = models.CharField(max_length=40)
+    entidad = models.CharField(max_length=50)
+    id_registro = models.IntegerField()
+
+    class Meta:
+        db_table = 'notificacion'
+        indexes = [models.Index(fields=['regla', 'entidad', 'id_registro'], name='notif_regla_registro')]
+
+    def __str__(self):
+        return f'{self.tipo}: {self.mensaje}'

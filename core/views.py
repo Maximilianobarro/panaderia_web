@@ -130,6 +130,10 @@ def index_view(request):
 
 @login_requerido
 def dashboard(request):
+    # La primera visita del día a Inicio dispara la revisión diaria de alertas
+    # (por si la tarea programada no corrió porque la PC estaba apagada).
+    from .alertas import revision_diaria_segura
+    revision_diaria_segura()
     return render(request, 'core/dashboard.html')
 
 

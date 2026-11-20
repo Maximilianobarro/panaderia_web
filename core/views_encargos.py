@@ -8,8 +8,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+from .alertas import al_registrar_encargo
 from .auditoria import registrar_auditoria
 from .auth_utils import permiso_requerido
+from .caja_utils import error_sin_caja
 from .models import Cliente, DetalleEncargo, Encargo, NotaCredito, Producto
 from .views_hito3 import MEDIOS_PAGO, MESES, ZONA_LOCAL, _hoy, _leer_items, _parse_fecha, _usuario_actual
 
@@ -249,8 +251,14 @@ def encargo_crear(request):
         cantidades = request.POST.getlist('cantidad')
         lineas = [{'producto': p, 'cantidad': c} for p, c in zip(ids, cantidades)]
 
-        encargo = _registrar_encargo(request, datos, ids, cantidades, errores)
+        error_caja = error_sin_caja(_usuario_actual(request))
+        encargo = None
+        if error_caja:
+            errores.append(error_caja)
+        else:
+            encargo = _registrar_encargo(request, datos, ids, cantidades, errores)
         if encargo is not None:
+            al_registrar_encargo(encargo)
             messages.success(
                 request,
                 f'Encargo {encargo.numero_comprobante} registrado. El stock se descontará al entregarlo.'
@@ -376,7 +384,7 @@ def encargo_lista(request):
 
 def _datos_encargo(pk):
     encargo = get_object_or_404(
-        Encargo.objects.select_related('cliente', 'usuario', 'usuario_anulacion'),
+        Encargo.objects.select_related('cliente', 'usuario', 'usuario_anulacion', 'usuario_pago_saldo'),
         pk=pk,
     )
     detalles = (
@@ -418,9 +426,18 @@ def encargo_detalle(request, pk):
 @require_http_methods(['GET'])
 def encargo_comprobante(request, pk):
     encargo, detalles = _datos_encargo(pk)
+    senia = encargo.senia or Decimal('0')
+    saldo_cobrado = encargo.saldo if encargo.fecha_pago_saldo else Decimal('0')
+    total_pagado = senia + saldo_cobrado
     return render(request, 'core/encargo_comprobante.html', {
         'encargo': encargo,
         'detalles': detalles,
+        'senia': senia,
+        'total_pagado': total_pagado,
+        'resta': max(encargo.total - total_pagado, Decimal('0')),
+        'cubierto_con_senia': encargo.total <= senia,
+        'cancelado': encargo.estado == Encargo.ESTADO_CANCELADO,
+        'nota_credito': NotaCredito.objects.filter(encargo=encargo).first(),
     })
 
 
@@ -468,6 +485,10 @@ def encargo_pagar_saldo(request, pk):
     if medio not in MEDIOS_PAGO:
         messages.error(request, 'Elegí el medio de pago del saldo.')
         return redirect('encargo_detalle', pk=pk)
+    error_caja = error_sin_caja(_usuario_actual(request))
+    if error_caja:
+        messages.error(request, error_caja)
+        return redirect('encargo_detalle', pk=pk)
     with transaction.atomic():
         encargo = get_object_or_404(Encargo.objects.select_for_update(), pk=pk)
         if encargo.estado != Encargo.ESTADO_PENDIENTE:
@@ -511,6 +532,10 @@ def encargo_cancelar(request, pk):
         devolucion = _monto_devolucion(encargo, porcentaje)
         medio_devolucion = ''
         if devolucion > 0:
+            error_caja = error_sin_caja(usuario)
+            if error_caja:
+                messages.error(request, error_caja)
+                return redirect('encargo_detalle', pk=pk)
             medio_devolucion = request.POST.get('medio_devolucion', '').strip()
             if medio_devolucion not in MEDIOS_PAGO:
                 messages.error(request, 'Elegí cómo se devuelve el dinero.')

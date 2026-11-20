@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+from .alertas import al_mover_insumo
 from .auth_utils import permiso_requerido
 from .forms import InsumoForm
 from .models import Insumo, MovimientoInsumo
@@ -132,6 +133,9 @@ def insumo_movimiento_registrar(request, pk):
                         usuario=_usuario_actual(request),
                     )
                     messages.success(request, f'{tipo} de {cantidad} {insumo.unidad} registrada.')
+
+        if error is None and tipo == MovimientoInsumo.TIPO_SALIDA:
+            al_mover_insumo(insumo)
 
     if error:
         messages.error(request, error)

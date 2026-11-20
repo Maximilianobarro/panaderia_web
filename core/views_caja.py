@@ -8,10 +8,10 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .auth_utils import ROL_ADMIN, permiso_requerido
+from .caja_utils import PERMISO_CAJA, caja_abierta
 from .models import CierreCaja, Encargo, NotaCredito, Usuario, Venta
 from .views_hito3 import ESTADO_CONFIRMADA, MEDIOS_PAGO, ZONA_LOCAL, _hoy, _parse_fecha, _usuario_actual
 
-PERMISO_CAJA = 'cierre_caja'
 SIN_DATO = 'Sin dato'
 TIPOS = [
     ('ventas', 'Ventas'),
@@ -32,14 +32,6 @@ def _texto(dt):
 
 def _medio(valor):
     return valor if valor in MEDIOS_PAGO else SIN_DATO
-
-
-def _inicio_turno(usuario):
-    ultimo = CierreCaja.objects.filter(usuario=usuario).order_by('-hasta').first()
-    if ultimo is not None:
-        return ultimo.hasta
-    hoy = _hoy()
-    return datetime(hoy.year, hoy.month, hoy.day, tzinfo=ZONA_LOCAL)
 
 
 def _calcular(usuario, desde, hasta):
@@ -80,48 +72,74 @@ def _calcular(usuario, desde, hasta):
 
 
 @permiso_requerido(PERMISO_CAJA)
-@require_http_methods(['GET', 'POST'])
-def caja_cerrar(request):
+@require_http_methods(['GET'])
+def caja_index(request):
     usuario = _usuario_actual(request)
     if _es_admin(usuario):
-        messages.error(request, 'El Administrador no cierra caja: puede ver los cierres de todos los empleados.')
         return redirect('caja_lista')
+    abierta = caja_abierta(usuario)
+    contexto = {'abierta': abierta}
+    if abierta is not None:
+        datos = _calcular(usuario, abierta.desde, timezone.now())
+        contexto.update({
+            'datos': datos,
+            'desde_txt': _texto(abierta.desde),
+        })
+    return render(request, 'core/caja.html', contexto)
 
-    if request.method == 'POST':
-        observacion = request.POST.get('observacion', '').strip()
-        if len(observacion) > MAX_TEXTO:
-            messages.error(request, f'La observación no puede superar {MAX_TEXTO} caracteres.')
-            return redirect('caja_cerrar')
-        with transaction.atomic():
-            Usuario.objects.select_for_update().get(pk=usuario.pk)
-            desde = _inicio_turno(usuario)
-            hasta = timezone.now()
-            datos = _calcular(usuario, desde, hasta)
-            cierre = CierreCaja.objects.create(
-                usuario=usuario,
-                desde=desde,
-                hasta=hasta,
-                cantidad_ventas=datos['cantidad_ventas'],
-                total_ventas=datos['totales']['ventas'],
-                total_senias=datos['totales']['senias'],
-                total_saldos=datos['totales']['saldos'],
-                total_devoluciones=datos['totales']['devoluciones'],
-                efectivo=datos['por_medio']['Efectivo'],
-                transferencia=datos['por_medio']['Transferencia'],
-                tarjeta=datos['por_medio']['Tarjeta'],
-                total_turno=datos['total_turno'],
-                observacion=observacion or None,
-            )
-        messages.success(request, f'Caja cerrada. Cierre {cierre.numero_comprobante} registrado.')
-        return redirect('caja_comprobante', pk=cierre.pk)
 
-    desde = _inicio_turno(usuario)
-    hasta = timezone.now()
-    return render(request, 'core/caja_cerrar.html', {
-        'datos': _calcular(usuario, desde, hasta),
-        'desde_txt': _texto(desde),
-        'hasta_txt': _texto(hasta),
-    })
+@permiso_requerido(PERMISO_CAJA)
+@require_http_methods(['POST'])
+def caja_abrir(request):
+    usuario = _usuario_actual(request)
+    if _es_admin(usuario):
+        messages.error(request, 'El Administrador no abre caja: puede ver las cajas de todos los empleados.')
+        return redirect('caja_lista')
+    with transaction.atomic():
+        Usuario.objects.select_for_update().get(pk=usuario.pk)
+        if caja_abierta(usuario) is not None:
+            messages.error(request, 'Ya tenés una caja abierta.')
+            return redirect('caja_index')
+        CierreCaja.objects.create(
+            usuario=usuario,
+            estado=CierreCaja.ESTADO_ABIERTA,
+            desde=timezone.now(),
+        )
+    messages.success(request, 'Caja abierta. Ya podés registrar ventas, encargos y cobros.')
+    return redirect('caja_index')
+
+
+@permiso_requerido(PERMISO_CAJA)
+@require_http_methods(['POST'])
+def caja_cerrar(request):
+    usuario = _usuario_actual(request)
+    observacion = request.POST.get('observacion', '').strip()
+    if len(observacion) > MAX_TEXTO:
+        messages.error(request, f'La observación no puede superar {MAX_TEXTO} caracteres.')
+        return redirect('caja_index')
+    with transaction.atomic():
+        Usuario.objects.select_for_update().get(pk=usuario.pk)
+        caja = caja_abierta(usuario)
+        if caja is None:
+            messages.error(request, 'No tenés una caja abierta para cerrar.')
+            return redirect('caja_index')
+        hasta = timezone.now()
+        datos = _calcular(usuario, caja.desde, hasta)
+        caja.hasta = hasta
+        caja.estado = CierreCaja.ESTADO_CERRADA
+        caja.cantidad_ventas = datos['cantidad_ventas']
+        caja.total_ventas = datos['totales']['ventas']
+        caja.total_senias = datos['totales']['senias']
+        caja.total_saldos = datos['totales']['saldos']
+        caja.total_devoluciones = datos['totales']['devoluciones']
+        caja.efectivo = datos['por_medio']['Efectivo']
+        caja.transferencia = datos['por_medio']['Transferencia']
+        caja.tarjeta = datos['por_medio']['Tarjeta']
+        caja.total_turno = datos['total_turno']
+        caja.observacion = observacion or None
+        caja.save()
+    messages.success(request, f'Caja cerrada. Cierre {caja.numero_comprobante} registrado.')
+    return redirect('caja_comprobante', pk=caja.pk)
 
 
 @permiso_requerido(PERMISO_CAJA)
@@ -138,20 +156,21 @@ def caja_lista(request):
 
     inicio = datetime(fecha.year, fecha.month, fecha.day, tzinfo=ZONA_LOCAL)
     cierres = CierreCaja.objects.select_related('usuario').filter(
-        hasta__gte=inicio, hasta__lt=inicio + timedelta(days=1),
+        desde__gte=inicio, desde__lt=inicio + timedelta(days=1),
     )
     if not es_admin:
         cierres = cierres.filter(usuario=usuario)
     elif empleado_id.isdecimal():
         cierres = cierres.filter(usuario_id=int(empleado_id))
-    cierres = list(cierres.order_by('-hasta'))
+    cierres = list(cierres.order_by('-desde'))
     for c in cierres:
         c.desde_txt = _texto(c.desde)
-        c.hasta_txt = _texto(c.hasta)
+        c.hasta_txt = _texto(c.hasta) if c.hasta else 'abierta'
+    cerradas = [c for c in cierres if c.estado == CierreCaja.ESTADO_CERRADA]
 
     campos = ['total_ventas', 'total_senias', 'total_saldos', 'total_devoluciones', 'efectivo', 'transferencia', 'tarjeta', 'total_turno']
-    total_dia = {campo: sum((getattr(c, campo) for c in cierres), Decimal('0')) for campo in campos}
-    total_dia['cantidad_ventas'] = sum(c.cantidad_ventas for c in cierres)
+    total_dia = {campo: sum((getattr(c, campo) for c in cerradas), Decimal('0')) for campo in campos}
+    total_dia['cantidad_ventas'] = sum(c.cantidad_ventas for c in cerradas)
 
     return render(request, 'core/caja_lista.html', {
         'cierres': cierres,
@@ -170,6 +189,9 @@ def caja_comprobante(request, pk):
     cierre = get_object_or_404(CierreCaja.objects.select_related('usuario'), pk=pk)
     if not _es_admin(usuario) and cierre.usuario_id != usuario.pk:
         messages.error(request, 'Solo podés ver tus propios cierres de caja.')
+        return redirect('caja_lista')
+    if cierre.estado != CierreCaja.ESTADO_CERRADA:
+        messages.error(request, 'Esa caja todavía está abierta.')
         return redirect('caja_lista')
     return render(request, 'core/caja_comprobante.html', {
         'cierre': cierre,

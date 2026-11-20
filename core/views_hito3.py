@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .auth_utils import permiso_requerido
+from .caja_utils import error_sin_caja
 from .models import Cliente, DetalleVenta, Producto, Usuario, Venta
 
 PERMISO_VER = 'ver_ventas'
@@ -185,8 +186,15 @@ def venta_crear(request):
         cantidades = request.POST.getlist('cantidad')
         lineas = [{'producto': p, 'cantidad': c} for p, c in zip(ids, cantidades)]
 
-        venta = _registrar_venta(request, cliente_id, medio_pago, ids, cantidades, errores)
+        error_caja = error_sin_caja(_usuario_actual(request))
+        venta = None
+        if error_caja:
+            errores.append(error_caja)
+        else:
+            venta = _registrar_venta(request, cliente_id, medio_pago, ids, cantidades, errores)
         if venta is not None:
+            from .alertas import al_registrar_venta  # import local: alertas importa este módulo
+            al_registrar_venta(venta)
             messages.success(
                 request,
                 f'Venta {venta.numero_comprobante} registrada. El stock fue actualizado.'
