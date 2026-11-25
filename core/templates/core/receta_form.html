@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Receta de {{ producto.nombre }} - Panadería Zulca</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    {% include 'core/_menu.html' %}
+    <div class="container mb-5" style="max-width: 760px;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h1 class="mb-0">Receta: {{ producto.nombre }}</h1>
+            <a href="{% url 'producto_lista' %}" class="btn btn-secondary">Volver</a>
+        </div>
+        <p class="text-white">Cuánto de cada insumo lleva <strong>una unidad</strong> de «{{ producto.nombre }}». Dejá vacío (o en 0) lo que no lleva. Se usa para descontar los insumos al registrar una producción.</p>
+
+        {% for e in errores %}
+        <div class="alert alert-danger">{{ e }}</div>
+        {% endfor %}
+
+        <form method="post" class="bg-white p-3 rounded">
+            {% csrf_token %}
+            <table class="table align-middle mb-3">
+                <thead>
+                    <tr>
+                        <th>Insumo</th>
+                        <th style="width: 220px;">Cantidad por unidad</th>
+                        <th>Stock actual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in filas %}
+                    <tr class="{% if not f.insumo.activo %}table-secondary text-muted{% endif %}">
+                        <td>
+                            <label for="insumo_{{ f.insumo.pk }}">{{ f.insumo.nombre }}</label>
+                            {% if not f.insumo.activo %}<span class="badge text-bg-secondary">Dado de baja</span>{% endif %}
+                        </td>
+                        <td>
+                            <div class="input-group input-group-sm">
+                                <input type="text" inputmode="decimal" id="insumo_{{ f.insumo.pk }}" name="insumo_{{ f.insumo.pk }}" value="{{ f.valor }}" class="form-control" placeholder="0">
+                                <span class="input-group-text">{{ f.insumo.unidad }}</span>
+                            </div>
+                        </td>
+                        <td>{{ f.insumo.stock_actual|floatformat:"-3" }} {{ f.insumo.unidad }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="text-center">No hay insumos activos. Cargalos primero en Insumos.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <button type="submit" class="btn btn-success">Guardar receta</button>
+        </form>
+    </div>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Registrar producción - Panadería Zulca</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    {% include 'core/_menu.html' %}
+    <div class="container mb-5" style="max-width: 900px;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h1 class="mb-0">Registrar producción</h1>
+            <a href="{% url 'producto_lista' %}" class="btn btn-secondary">Volver</a>
+        </div>
+        <p class="text-white">Indicá qué se horneó y cuántas unidades. El sistema descuenta los insumos según la receta y suma las unidades al stock del producto.</p>
+
+        {% for e in errores %}
+        <div class="alert alert-danger">{{ e }}</div>
+        {% endfor %}
+
+        <form method="get" class="bg-white p-3 rounded mb-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold" for="producto">Producto</label>
+                    <select id="producto" name="producto" class="form-select" required>
+                        <option value="">Elegí un producto</option>
+                        {% for p in productos %}
+                        <option value="{{ p.pk }}" {% if p.pk|stringformat:"s" == producto_txt %}selected{% endif %}>{{ p.nombre }} (stock {{ p.stock_actual|default:0 }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold" for="cantidad">Unidades producidas</label>
+                    <input type="number" id="cantidad" name="cantidad" value="{{ cantidad_txt }}" min="1" max="100000" step="1" class="form-control" required>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">Ver insumos necesarios</button>
+                </div>
+            </div>
+            {% if sin_receta %}
+            <p class="small text-muted mt-2 mb-0">Sin receta (no aparecen en la lista): {% for p in sin_receta %}{{ p.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}. Cargala desde Productos → Receta.</p>
+            {% endif %}
+        </form>
+
+        {% if detalle %}
+        <div class="bg-white p-3 rounded">
+            <h2 class="h5" style="color: #3e2a1e;">Insumos para {{ cantidad }} «{{ producto.nombre }}»</h2>
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Insumo</th>
+                        <th class="text-end">Por unidad</th>
+                        <th class="text-end">Se usa</th>
+                        <th class="text-end">Hay</th>
+                        <th class="text-end">Queda</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in detalle %}
+                    <tr class="{% if f.falta %}table-danger{% elif f.bajo_minimo %}table-warning{% endif %}">
+                        <td>
+                            {{ f.insumo.nombre }}
+                            {% if not f.insumo.activo %}<span class="badge text-bg-secondary">Dado de baja</span>
+                            {% elif f.falta %}<span class="badge text-bg-danger">No alcanza</span>
+                            {% elif f.bajo_minimo %}<span class="badge text-bg-warning">Queda bajo el mínimo</span>{% endif %}
+                        </td>
+                        <td class="text-end">{{ f.por_unidad }} {{ f.insumo.unidad }}</td>
+                        <td class="text-end">{{ f.necesario|floatformat:"-3" }} {{ f.insumo.unidad }}</td>
+                        <td class="text-end">{{ f.disponible|floatformat:"-3" }} {{ f.insumo.unidad }}</td>
+                        <td class="text-end">{{ f.quedaria|floatformat:"-3" }} {{ f.insumo.unidad }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if puede_confirmar %}
+            <form method="post" onsubmit="return confirm('¿Confirmás la producción? Se descontarán los insumos.');">
+                {% csrf_token %}
+                <input type="hidden" name="producto" value="{{ producto.pk }}">
+                <input type="hidden" name="cantidad" value="{{ cantidad }}">
+                <button type="submit" class="btn btn-success">Confirmar producción</button>
+            </form>
+            {% else %}
+            <div class="alert alert-danger mb-0">No alcanzan los insumos marcados en rojo. Registrá una entrada en Insumos o producí menos unidades.</div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

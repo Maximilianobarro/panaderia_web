@@ -11,6 +11,7 @@ from . import views_insumos as ins
 from . import views_caja as caja
 from . import views_alertas as alertas
 from . import views_reportes as rep
+from . import views_produccion as prod
 
 urlpatterns = [
     path('', RedirectView.as_view(url='/inicio/', permanent=False)),
@@ -108,6 +109,11 @@ urlpatterns = [
     path('insumos/<int:pk>/estado/', ins.insumo_estado, name='insumo_estado'),
     path('insumos/<int:pk>/movimientos/', ins.insumo_movimientos, name='insumo_movimientos'),
     path('insumos/<int:pk>/movimientos/registrar/', ins.insumo_movimiento_registrar, name='insumo_movimiento_registrar'),
+
+    # ---------- RECETAS Y PRODUCCIÓN ----------
+    path('productos/<int:pk>/receta/', prod.receta_editar, name='receta_editar'),
+    path('produccion/', prod.produccion_lista, name='produccion_lista'),
+    path('produccion/nueva/', prod.produccion_crear, name='produccion_crear'),
 
     # ---------- NOTIFICACIONES Y ALERTAS (Parcial Nº2, M3) ----------
     path('notificaciones/', alertas.notificacion_lista, name='notificacion_lista'),

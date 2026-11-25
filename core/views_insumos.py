@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from .alertas import al_mover_insumo
+from .alertas import al_mover_insumo, aviso_para_pantalla
 from .auth_utils import permiso_requerido
 from .forms import InsumoForm
 from .models import Insumo, MovimientoInsumo
@@ -19,6 +19,9 @@ PERMISO_ESTADO = 'dar_baja_alta'
 MAX_CANTIDAD = Decimal('999999999.999')
 MAX_TEXTO = 200
 ORDEN_NIVEL = {'sin': 0, 'bajo': 1, 'cerca': 2}
+# Ordenamientos de la tabla: nombre (A-Z / Z-A), stock (mayor a menor / menor a mayor)
+# y situación (más stock respecto del mínimo primero / menos primero).
+ORDENES = {'nombre', '-nombre', 'stock', '-stock', 'situacion', '-situacion'}
 
 
 def _leer_cantidad(texto):
@@ -41,6 +44,20 @@ def _leer_cantidad(texto):
 @require_http_methods(['GET'])
 def insumo_lista(request):
     insumos = list(Insumo.objects.prefetch_related('productos').order_by('-activo', 'nombre'))
+    orden = request.GET.get('orden', '')
+    if orden not in ORDENES:
+        orden = ''
+    if orden:
+        campo = orden.lstrip('-')
+        if campo == 'nombre':
+            clave = lambda i: i.nombre.lower()
+        elif campo == 'stock':
+            clave = lambda i: i.stock_actual
+        else:
+            # Situación: qué tan lejos está el stock de su mínimo (stock / mínimo).
+            clave = lambda i: i.stock_actual / i.stock_minimo if i.stock_minimo > 0 else Decimal('Infinity')
+        insumos.sort(key=clave, reverse=orden.startswith('-'))
+        insumos.sort(key=lambda i: not i.activo)  # los dados de baja siempre al final
     alertas = sorted(
         (i for i in insumos if i.activo and i.nivel != 'ok'),
         key=lambda i: (ORDEN_NIVEL[i.nivel], i.nombre.lower()),
@@ -49,6 +66,7 @@ def insumo_lista(request):
         'insumos': insumos,
         'alertas': alertas,
         'hay_activos': any(i.activo for i in insumos),
+        'orden': orden,
     })
 
 
@@ -135,7 +153,9 @@ def insumo_movimiento_registrar(request, pk):
                     messages.success(request, f'{tipo} de {cantidad} {insumo.unidad} registrada.')
 
         if error is None and tipo == MovimientoInsumo.TIPO_SALIDA:
-            al_mover_insumo(insumo)
+            alerta = al_mover_insumo(insumo)
+            if alerta is not None:
+                messages.warning(request, aviso_para_pantalla(alerta))
 
     if error:
         messages.error(request, error)

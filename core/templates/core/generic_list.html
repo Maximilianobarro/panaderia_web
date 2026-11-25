@@ -13,6 +13,12 @@
         {% if es_admin or not permiso_editar or permiso_editar in permisos_usuario %}
         <a href="{% url crear_url %}" class="btn btn-success mb-3">+ Nuevo</a>
         {% endif %}
+        {% if titulo == 'Producto' %}
+        {% if es_admin or 'editar_stock' in permisos_usuario %}
+        <a href="{% url 'produccion_crear' %}" class="btn btn-warning mb-3">🍞 Registrar producción</a>
+        {% endif %}
+        <a href="{% url 'produccion_lista' %}" class="btn btn-light mb-3">Historial de producción</a>
+        {% endif %}
         <a href="{% url 'dashboard' %}" class="btn btn-secondary mb-3">Volver</a>
 
         <table class="table table-bordered table-striped bg-white">
@@ -60,6 +66,9 @@
                     <td>
                         {% if es_admin or not permiso_modificar or permiso_modificar in permisos_usuario %}
                         <a href="{% url editar_url objeto.pk %}" class="btn btn-sm btn-primary">Editar</a>
+                        {% endif %}
+                        {% if titulo == 'Producto' and es_admin or titulo == 'Producto' and 'editar_stock' in permisos_usuario %}
+                        <a href="{% url 'receta_editar' objeto.pk %}" class="btn btn-sm btn-outline-dark">Receta</a>
                         {% endif %}
                         {% if es_admin or not permiso_borrar or permiso_borrar in permisos_usuario %}
                         <form method="post" action="{% url estado_url objeto.pk %}" class="d-inline"{% if titulo == 'Producto' and objeto.activo %} onsubmit="return confirm('¿Estás seguro de esta acción?');"{% endif %}>

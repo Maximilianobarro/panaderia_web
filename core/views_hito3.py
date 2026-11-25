@@ -2,6 +2,7 @@ from datetime import date, datetime, time, timedelta, timezone as dt_timezone
 from decimal import Decimal
 
 from django.contrib import messages
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
@@ -18,6 +19,7 @@ PERMISO_COMPROBANTE = 'emitir_comprobante'
 ESTADO_CONFIRMADA = 'Confirmada'
 MEDIOS_PAGO = ['Efectivo', 'Transferencia', 'Tarjeta']
 MAX_CANTIDAD = 100000
+VENTAS_POR_PAGINA = 40
 ZONA_LOCAL = dt_timezone(timedelta(hours=-3))
 MESES = [
     'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -274,12 +276,17 @@ def venta_lista(request):
             ).values('venta_id')
         )
 
-    ventas = list(
-        ventas.select_related('cliente', 'usuario').order_by('-fecha_hora', '-id_venta')
-    )
+    pagina = Paginator(
+        ventas.select_related('cliente', 'usuario').order_by('-fecha_hora', '-id_venta'), VENTAS_POR_PAGINA,
+    ).get_page(request.GET.get('page'))
+    parametros = request.GET.copy()
+    parametros.pop('page', None)
 
     return render(request, 'core/venta_lista.html', {
-        'ventas': ventas,
+        'ventas': pagina.object_list,
+        'pagina': pagina,
+        'paginas': pagina.paginator.get_elided_page_range(pagina.number, on_each_side=2, on_ends=1),
+        'parametros': parametros.urlencode(),
         'opciones_mes': opciones_mes,
         'resumen_mes': resumen_mes,
         'medios_pago': MEDIOS_PAGO,

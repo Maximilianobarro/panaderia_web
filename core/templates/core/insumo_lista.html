@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <title>Insumos - Panadería Zulca</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        a.orden { color: #fff; text-decoration: none; white-space: nowrap; }
+        a.orden:hover { text-decoration: underline; }
+    </style>
 </head>
 <body class="bg-light">
     {% include 'core/_menu.html' %}
@@ -35,10 +39,10 @@
         <table class="table table-bordered table-striped bg-white align-middle">
             <thead class="table-dark">
                 <tr>
-                    <th>Insumo</th>
-                    <th>Stock actual</th>
+                    <th><a class="orden" href="?orden={% if orden == 'nombre' or not orden %}-nombre{% else %}nombre{% endif %}" title="Ordenar por nombre">Insumo {% if orden == 'nombre' or not orden %}▲ A-Z{% elif orden == '-nombre' %}▼ Z-A{% else %}⇅{% endif %}</a></th>
+                    <th><a class="orden" href="?orden={% if orden == '-stock' %}stock{% else %}-stock{% endif %}" title="Ordenar por stock">Stock actual {% if orden == '-stock' %}▼ mayor{% elif orden == 'stock' %}▲ menor{% else %}⇅{% endif %}</a></th>
                     <th>Mínimo</th>
-                    <th>Situación</th>
+                    <th><a class="orden" href="?orden={% if orden == '-situacion' %}situacion{% else %}-situacion{% endif %}" title="Ordenar por situación">Situación {% if orden == '-situacion' %}▼{% elif orden == 'situacion' %}▲{% else %}⇅{% endif %}</a></th>
                     <th>Usado en</th>
                     <th>Estado</th>
                     <th>Acciones</th>

@@ -293,6 +293,10 @@ class MovimientoInsumo(models.Model):
     fecha_hora = models.DateTimeField()
     motivo = models.CharField(max_length=200)
     usuario = models.ForeignKey(Usuario, on_delete=models.DO_NOTHING, db_column='usuario_id_usuario', related_name='movimientos_insumo')
+    produccion = models.ForeignKey(
+        'Produccion', on_delete=models.DO_NOTHING, db_column='produccion_id_produccion',
+        related_name='movimientos', blank=True, null=True,
+    )
 
     class Meta:
         db_table = 'movimiento_insumo'
@@ -386,3 +390,37 @@ class Notificacion(models.Model):
 
     def __str__(self):
         return f'{self.tipo}: {self.mensaje}'
+
+
+class Receta(models.Model):
+    """Cantidad de un insumo que lleva UNA unidad de un producto."""
+    id_receta = models.AutoField(primary_key=True)
+    producto = models.ForeignKey(Producto, on_delete=models.DO_NOTHING, db_column='producto_id_producto', related_name='receta')
+    insumo = models.ForeignKey(Insumo, on_delete=models.DO_NOTHING, db_column='insumo_id_insumo', related_name='recetas')
+    cantidad = models.DecimalField(max_digits=12, decimal_places=4)
+
+    class Meta:
+        db_table = 'receta'
+        unique_together = (('producto', 'insumo'),)
+
+    def __str__(self):
+        return f'{self.producto}: {self.cantidad} {self.insumo.unidad} de {self.insumo}'
+
+
+class Produccion(models.Model):
+    """Una tanda de producción: descuenta los insumos de la receta y suma stock al producto."""
+    id_produccion = models.AutoField(primary_key=True)
+    producto = models.ForeignKey(Producto, on_delete=models.DO_NOTHING, db_column='producto_id_producto', related_name='producciones')
+    cantidad = models.IntegerField()
+    fecha_hora = models.DateTimeField()
+    usuario = models.ForeignKey(Usuario, on_delete=models.DO_NOTHING, db_column='usuario_id_usuario', related_name='producciones')
+
+    class Meta:
+        db_table = 'produccion'
+
+    def __str__(self):
+        return f'Producción {self.numero_comprobante}: {self.cantidad} {self.producto}'
+
+    @property
+    def numero_comprobante(self):
+        return f"0005-{self.id_produccion:08d}"

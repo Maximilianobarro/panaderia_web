@@ -18,6 +18,9 @@ PERMISO_CONFIGURACION = 'gestionar_configuracion'
 # Parámetros que se pueden editar desde la pantalla de configuración.
 # tipo: 'entero' (número entero), 'perfil' (nombre de un rol), 'email' (dirección de correo)
 # o 'reglas' (lista de reglas).
+# Valor que se muestra si el parámetro todavía no está guardado en la tabla configuracion.
+VALORES_POR_DEFECTO = {'venta_inusual_unidades': '200'}
+
 PARAMETROS = [
     ('stock_insumo_porcentaje_aviso', 'Stock de insumos: % del stock mínimo para avisar', 'entero', 1, 1000),
     ('perfil_stock_insumo', 'Stock de insumos: perfil que recibe el aviso', 'perfil', None, None),
@@ -25,6 +28,7 @@ PARAMETROS = [
     ('perfil_saldo_pendiente', 'Saldos pendientes: perfil que recibe el aviso', 'perfil', None, None),
     ('venta_inusual_desvios', 'Venta inusual: desvíos estándar sobre el promedio', 'entero', 1, 10),
     ('venta_inusual_minimo_ventas', 'Venta inusual: ventas previas necesarias', 'entero', 2, 100000),
+    ('venta_inusual_unidades', 'Venta inusual: unidades a partir de las cuales avisar', 'entero', 1, 100000),
     ('perfil_venta_inusual', 'Venta inusual: perfil que recibe el aviso', 'perfil', None, None),
     ('email_destino', 'Correo que recibe los avisos (vacío = no se envían correos)', 'email', None, None),
     ('email_reglas', 'Reglas que también se envían por correo', 'reglas', None, None),
@@ -118,7 +122,8 @@ def configuracion_editar(request):
     roles = list(Rol.objects.filter(activo=True).order_by('nombre_rol').values_list('nombre_rol', flat=True))
     actuales = {c.clave: c for c in Configuracion.objects.filter(clave__in=[p[0] for p in PARAMETROS])}
     errores = []
-    valores = {clave: (actuales[clave].valor if clave in actuales else '') for clave, *_ in PARAMETROS}
+    valores = {clave: (actuales[clave].valor if clave in actuales else VALORES_POR_DEFECTO.get(clave, ''))
+               for clave, *_ in PARAMETROS}
 
     if request.method == 'POST':
         nuevos = {}

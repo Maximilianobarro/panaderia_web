@@ -19,10 +19,10 @@ from decimal import Decimal, InvalidOperation
 from email.message import EmailMessage
 
 from django.db import transaction
-from django.db.models import Avg, Count, StdDev
+from django.db.models import Avg, Count, StdDev, Sum
 from django.utils import timezone
 
-from .models import Configuracion, Encargo, Insumo, Notificacion, Venta
+from .models import Configuracion, DetalleVenta, Encargo, Insumo, Notificacion, Venta
 from .views_hito3 import ESTADO_CONFIRMADA, ZONA_LOCAL, _hoy
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ REGLA_VENTA = 'venta_inusual'
 REGLAS = {
     REGLA_STOCK: 'Stock bajo de insumo',
     REGLA_SALDO: 'Saldo pendiente de encargo',
-    REGLA_VENTA: 'Venta de monto inusual',
+    REGLA_VENTA: 'Venta inusual (monto o cantidad)',
 }
 
 CLAVE_ULTIMA_REVISION = 'ultima_revision_diaria'
@@ -114,28 +114,33 @@ def _inicio_hoy():
     return datetime.combine(_hoy(), time.min, tzinfo=ZONA_LOCAL)
 
 
-def notificar(regla, entidad, id_registro, mensaje):
-    """Crea la notificación si no existe otra igual sin leer o creada hoy.
+def notificar(regla, entidad, id_registro, mensaje, tipo=None):
+    """Crea la notificación si no existe otra igual (misma regla, registro y tipo) sin leer o creada hoy.
 
-    Devuelve la notificación creada, o None si ya existía.
+    Devuelve la notificación creada, o None si ya existía. La notificación creada lleva en
+    `envio_email` el resultado del correo: None si esa regla no se envía por correo,
+    o (ok, detalle) si se intentó enviar.
     """
+    tipo = tipo or REGLAS[regla]
     with transaction.atomic():
         # Bloquea la fila de la regla: serializa la verificación y la creación.
         Configuracion.objects.select_for_update().filter(clave=f'perfil_{regla}').first()
-        misma = Notificacion.objects.filter(regla=regla, entidad=entidad, id_registro=id_registro)
+        misma = Notificacion.objects.filter(regla=regla, entidad=entidad, id_registro=id_registro, tipo=tipo)
         if misma.filter(leida=False).exists() or misma.filter(fecha__gte=_inicio_hoy()).exists():
             return None
         notificacion = Notificacion.objects.create(
             fecha=timezone.now(),
-            tipo=REGLAS[regla],
+            tipo=tipo,
             mensaje=mensaje[:300],
             destino_perfil=valor_config(f'perfil_{regla}', 'Administrador') or 'Administrador',
             regla=regla,
             entidad=entidad,
             id_registro=id_registro,
         )
+    notificacion.envio_email = None
     if regla in reglas_email():
         ok, detalle = enviar_email(f'Panadería Zulca - {notificacion.tipo}', _texto_email(notificacion))
+        notificacion.envio_email = (ok, detalle)
         if not ok:
             logger.warning(detalle)
     return notificacion
@@ -163,11 +168,19 @@ def revisar_stock_insumo(insumo):
     limite = insumo.stock_minimo * porcentaje / 100
     if insumo.stock_actual > limite:
         return None
-    mensaje = (
-        f'El insumo «{insumo.nombre}» tiene {_texto_cantidad(insumo.stock_actual)} {insumo.unidad} '
-        f'(stock mínimo {_texto_cantidad(insumo.stock_minimo)} {insumo.unidad}). Hay que reponerlo.'
-    )
-    return notificar(REGLA_STOCK, 'insumo', insumo.pk, mensaje)
+    # "Sin stock" es una alerta distinta de "Stock bajo": si un insumo ya avisó que estaba bajo
+    # y después se termina, se vuelve a avisar.
+    if insumo.stock_actual <= 0:
+        tipo = 'Insumo sin stock'
+        mensaje = (f'El insumo «{insumo.nombre}» se quedó SIN STOCK (0 {insumo.unidad}). '
+                   f'Stock mínimo {_texto_cantidad(insumo.stock_minimo)} {insumo.unidad}. Hay que reponerlo.')
+    else:
+        tipo = REGLAS[REGLA_STOCK]
+        mensaje = (
+            f'El insumo «{insumo.nombre}» tiene {_texto_cantidad(insumo.stock_actual)} {insumo.unidad} '
+            f'(stock mínimo {_texto_cantidad(insumo.stock_minimo)} {insumo.unidad}). Hay que reponerlo.'
+        )
+    return notificar(REGLA_STOCK, 'insumo', insumo.pk, mensaje, tipo)
 
 
 def revisar_stock_insumos():
@@ -211,23 +224,34 @@ def revisar_saldos_pendientes():
 # ---------- Regla 3: venta de monto inusual ----------
 
 def revisar_venta_inusual(venta):
+    """Una venta es inusual si su monto supera promedio + N desvíos (automático, con numpy/estadística)
+    o si lleva N unidades o más en total, sin importar el precio."""
+    motivos = []
+
+    unidades_limite = int(numero_config('venta_inusual_unidades', 200))
+    unidades = DetalleVenta.objects.filter(venta=venta).aggregate(total=Sum('cantidad'))['total'] or 0
+    if unidades >= unidades_limite:
+        motivos.append(f'lleva {unidades} unidades (el aviso es desde {unidades_limite})')
+
     desvios = numero_config('venta_inusual_desvios', 3)
     minimo = int(numero_config('venta_inusual_minimo_ventas', 30))
     previas = Venta.objects.filter(estado=ESTADO_CONFIRMADA).exclude(pk=venta.pk)
     datos = previas.aggregate(cantidad=Count('pk'), promedio=Avg('total'), desvio=StdDev('total', sample=True))
-    if datos['cantidad'] < minimo or not datos['desvio']:
+    por_monto = False
+    if datos['cantidad'] >= minimo and datos['desvio']:
+        promedio = Decimal(str(datos['promedio']))
+        desvio = Decimal(str(datos['desvio']))
+        limite = promedio + desvios * desvio
+        if venta.total > limite:
+            por_monto = True
+            motivos.insert(0, f'su monto de ${venta.total:.2f} supera el límite de ${limite:.2f} '
+                              f'(promedio ${promedio:.2f} + {_texto_cantidad(desvios)} desvíos de ${desvio:.2f})')
+
+    if not motivos:
         return None
-    promedio = Decimal(str(datos['promedio']))
-    desvio = Decimal(str(datos['desvio']))
-    limite = promedio + desvios * desvio
-    if venta.total <= limite:
-        return None
-    mensaje = (
-        f'La venta {venta.numero_comprobante} por ${venta.total:.2f} supera el límite de ${limite:.2f} '
-        f'(promedio ${promedio:.2f} + {_texto_cantidad(desvios)} desvíos de ${desvio:.2f}). '
-        f'Registró: {venta.usuario}.'
-    )
-    return notificar(REGLA_VENTA, 'venta', venta.pk, mensaje)
+    tipo = 'Venta de monto inusual' if por_monto else 'Venta de cantidad inusual'
+    mensaje = f'La venta {venta.numero_comprobante} ' + ' y '.join(motivos) + f'. Registró: {venta.usuario}.'
+    return notificar(REGLA_VENTA, 'venta', venta.pk, mensaje, tipo)
 
 
 # ---------- Puntos de entrada ----------
@@ -273,3 +297,13 @@ def notificaciones_visibles(usuario, es_admin):
     if not es_admin:
         consulta = consulta.filter(destino_perfil__iexact=usuario.rol.nombre_rol)
     return consulta
+
+
+def aviso_para_pantalla(notificacion):
+    """Texto para mostrarle al usuario, después de una operación, que se generó una alerta."""
+    texto = f'Se generó una alerta: {notificacion.tipo}. {notificacion.mensaje}'
+    envio = getattr(notificacion, 'envio_email', None)
+    if envio is not None:
+        ok, detalle = envio
+        texto += f' {detalle}' if ok else f' El correo NO se envió: {detalle}'
+    return texto

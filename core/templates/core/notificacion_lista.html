@@ -46,7 +46,8 @@
                 <tr {% if not n.leida %}class="fw-semibold"{% endif %}>
                     <td class="text-nowrap">{{ n.fecha|date:"d/m/Y H:i" }}</td>
                     <td class="text-nowrap">
-                        {% if n.regla == 'stock_insumo' %}<span class="badge text-bg-warning">{{ n.tipo }}</span>
+                        {% if n.regla == 'stock_insumo' and n.tipo == 'Insumo sin stock' %}<span class="badge text-bg-danger">{{ n.tipo }}</span>
+                        {% elif n.regla == 'stock_insumo' %}<span class="badge text-bg-warning">{{ n.tipo }}</span>
                         {% elif n.regla == 'saldo_pendiente' %}<span class="badge text-bg-danger">{{ n.tipo }}</span>
                         {% else %}<span class="badge text-bg-info">{{ n.tipo }}</span>{% endif %}
                     </td>

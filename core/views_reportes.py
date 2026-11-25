@@ -1,9 +1,4 @@
-"""Reportes consolidados (Parcial Nº 2, M2).
 
-Cada reporte cruza datos de al menos dos procesos (Ventas y Encargos, y en la
-rendición también Caja y Notas de crédito). La misma función arma los datos
-para la pantalla y para el PDF, así los dos muestran siempre los mismos números.
-"""
 import base64
 import hashlib
 import threading
